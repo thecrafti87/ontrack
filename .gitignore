@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# OnTrack: Laufzeitdaten nie committen
+prisma/data/
+data/
+.claude/settings.local.json

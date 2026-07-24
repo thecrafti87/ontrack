@@ -1,0 +1,85 @@
+// Zentrale Status-Definitionen mit deutschen Labels und Farben (Tailwind-Klassen)
+
+export const DEVICE_STATUS = {
+  EINSATZBEREIT: { label: "Einsatzbereit", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  DEFEKT_GEMELDET: { label: "Defekt gemeldet", badge: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  GESPERRT: { label: "Gesperrt", badge: "bg-red-500/15 text-red-400 border-red-500/30" },
+  IN_REPARATUR: { label: "In Reparatur", badge: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
+  AUSGEMUSTERT: { label: "Ausgemustert", badge: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30" },
+} as const;
+export type DeviceStatus = keyof typeof DEVICE_STATUS;
+
+// Gesperrt/defekt/ausgemustert = nicht für Events einplanbar
+export const NOT_PLANNABLE: DeviceStatus[] = ["DEFEKT_GEMELDET", "GESPERRT", "IN_REPARATUR", "AUSGEMUSTERT"];
+
+export const EVENT_ITEM_STATUS = {
+  GEPLANT: { label: "Geplant", badge: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30", next: "GEPACKT" },
+  GEPACKT: { label: "Gepackt", badge: "bg-sky-500/15 text-sky-400 border-sky-500/30", next: "AUFGEBAUT" },
+  AUFGEBAUT: { label: "Aufgebaut", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", next: "ABGEBAUT" },
+  ABGEBAUT: { label: "Abgebaut", badge: "bg-amber-500/15 text-amber-400 border-amber-500/30", next: "ZURUECK" },
+  ZURUECK: { label: "Zurück im Lager", badge: "bg-violet-500/15 text-violet-400 border-violet-500/30", next: null },
+} as const;
+export type EventItemStatus = keyof typeof EVENT_ITEM_STATUS;
+
+export const ISSUE_STATUS = {
+  OFFEN: { label: "Offen", badge: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  IN_REPARATUR: { label: "In Reparatur", badge: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
+  ERLEDIGT: { label: "Erledigt", badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+} as const;
+export type IssueStatus = keyof typeof ISSUE_STATUS;
+
+export const ROLES = {
+  ADMIN: { label: "Admin" },
+  TECHNIKER: { label: "Techniker" },
+  HELFER: { label: "Helfer (nur lesen + abhaken)" },
+} as const;
+export type Role = keyof typeof ROLES;
+
+export function formatDate(d: Date | string | null | undefined): string {
+  if (!d) return "–";
+  return new Date(d).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+export function formatDateTime(d: Date | string | null | undefined): string {
+  if (!d) return "–";
+  return new Date(d).toLocaleString("de-DE", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+/** Zeitraum kompakt formatieren — bei eintägigem Zeitraum nur ein Datum. */
+export function formatDateRange(start: Date | string, end: Date | string): string {
+  const s = new Date(start);
+  const e = new Date(end);
+  if (s.toDateString() === e.toDateString()) return formatDate(s);
+  return `${formatDate(s)} – ${formatDate(e)}`;
+}
+
+export const NO_CATEGORY_LABEL = "Ohne Kategorie";
+
+/** Ab dieser Gesamtzahl sind Kategorie-Gruppen (Case-Inhalt, Packliste) auf Desktop initial zugeklappt. */
+export const GROUP_AUTOOPEN_THRESHOLD = 30;
+
+/**
+ * Gruppiert eine Liste nach Kategorie (Reihenfolge: alphabetisch, "Ohne Kategorie"
+ * immer zuletzt). Dient der übersichtlichen Darstellung großer Bestände
+ * (Case-Inhalt, Event-Packliste) als aufklappbare Gruppen statt flacher Listen.
+ */
+export function groupByCategory<T>(
+  items: T[],
+  getCategory: (item: T) => string | null | undefined
+): { category: string; items: T[] }[] {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const key = getCategory(item)?.trim() || NO_CATEGORY_LABEL;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(item);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => {
+      if (a === NO_CATEGORY_LABEL) return 1;
+      if (b === NO_CATEGORY_LABEL) return -1;
+      return a.localeCompare(b, "de");
+    })
+    .map(([category, groupItems]) => ({ category, items: groupItems }));
+}

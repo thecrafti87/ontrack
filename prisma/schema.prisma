@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── Benutzer & Sessions ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("TECHNIKER") // ADMIN | TECHNIKER | HELFER
+  approved     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  sessions Session[]
+  logs     ActivityLog[]
+  issues   Issue[]
+  photos   Photo[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── Standorte ───────────────────────────────────────────────────────
+
+model Location {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  lat         Float?
+  lng         Float?
+
+  devices Device[]
+  cases   Case[]
+}
+
+// ── Geräte & Cases ──────────────────────────────────────────────────
+
+model Device {
+  id            String       @id @default(cuid())
+  inventoryNo   String       @unique
+  name          String
+  category      String?
+  serialNo      String?
+  purchaseDate  DateTime?
+  purchasePrice Float?
+  supplier      String?
+  weightKg      Float?
+  notes         String?
+  status        String       @default("EINSATZBEREIT") // EINSATZBEREIT | DEFEKT_GEMELDET | GESPERRT | IN_REPARATUR | AUSGEMUSTERT
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  caseId String?
+  case   Case?   @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  // "zuletzt gesehen" per GPS beim Scan
+  lastLat    Float?
+  lastLng    Float?
+  lastSeenAt DateTime?
+
+  // Zusatzfelder: null = Kategorie-Standard gilt, sonst JSON-Array eigener Feld-Codes
+  fieldOverride String?
+
+  photos       Photo[]
+  issues       Issue[]
+  maintenances MaintenancePlan[]
+  eventItems   EventItem[]
+  logs         ActivityLog[]
+  fieldValues  DeviceFieldValue[]
+}
+
+model Case {
+  id          String  @id @default(cuid())
+  inventoryNo String  @unique
+  name        String
+  description String?
+
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  devices Device[]
+}
+
+// ── Veranstaltungen & Packlisten ────────────────────────────────────
+
+model Event {
+  id        String   @id @default(cuid())
+  name      String
+  venue     String?
+  startDate DateTime
+  endDate   DateTime
+  notes     String?
+  planImage String? // Dateiname des hochgeladenen Veranstaltungsplans
+  createdAt DateTime @default(now())
+
+  items EventItem[]
+  logs  ActivityLog[]
+}
+
+model EventItem {
+  id       String          @id @default(cuid())
+  eventId  String
+  deviceId String
+  position String? // Einsatzposition als Text, z. B. "Bühne links"
+  status   String          @default("GEPLANT") // GEPLANT | GEPACKT | AUFGEBAUT | ABGEBAUT | ZURUECK
+
+  // Position auf dem Veranstaltungsplan (relativ 0..1, per Drag & Drop)
+  planX Float?
+  planY Float?
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, deviceId])
+}
+
+// ── Wartung ─────────────────────────────────────────────────────────
+
+model MaintenancePlan {
+  id             String    @id @default(cuid())
+  deviceId       String
+  title          String // z. B. "DGUV V3-Prüfung"
+  intervalMonths Int
+  lastDoneAt     DateTime?
+  notes          String?
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+// ── Fehlermeldungen (Defekt-Workflow) ───────────────────────────────
+
+model Issue {
+  id          String      @id @default(cuid())
+  deviceId    String
+  reporterId  String
+  description String
+  status      String      @default("OFFEN") // OFFEN | IN_REPARATUR | ERLEDIGT
+  createdAt   DateTime    @default(now())
+  resolvedAt  DateTime?
+
+  device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  reporter User    @relation(fields: [reporterId], references: [id])
+  photos   Photo[]
+}
+
+// ── Fotos ───────────────────────────────────────────────────────────
+
+model Photo {
+  id           String   @id @default(cuid())
+  filename     String
+  caption      String?
+  createdAt    DateTime @default(now())
+  uploadedById String
+
+  deviceId String?
+  issueId  String?
+
+  device     Device? @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  issue      Issue?  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id])
+}
+
+// ── Historie ────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String // z. B. "Status geändert: einsatzbereit → gesperrt"
+  details   String?
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+
+  userId   String
+  deviceId String?
+  eventId  String?
+
+  user   User    @relation(fields: [userId], references: [id])
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  event  Event?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+// ── App-Einstellungen (z. B. Fundmodus-Kontakt) ─────────────────────
+
+model Setting {
+  key   String @id
+  value String
+}
+
+// ── Technische Zusatzfelder ──────────────────────────────────────────
+
+/** Pro Gerätekategorie festgelegte Auswahl aus dem Feldkatalog (JSON-Array von Codes). */
+model CategoryFieldConfig {
+  id         String @id @default(cuid())
+  category   String @unique
+  fieldCodes String // JSON-Array von Feld-Codes aus src/lib/fieldCatalog.ts
+}
+
+/** Ein Freitext-Wert für ein Zusatzfeld an einem konkreten Gerät. */
+model DeviceFieldValue {
+  id        String @id @default(cuid())
+  deviceId  String
+  fieldCode String
+  value     String
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, fieldCode])
+}

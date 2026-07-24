@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OnTrack
 
-## Getting Started
+Inventar- und Einsatz-Tracking für Veranstaltungstechnik mit QR-Codes.
+Konzept und Feature-Liste: [KONZEPT.md](KONZEPT.md)
 
-First, run the development server:
+## Lokal entwickeln & testen
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx prisma migrate dev   # legt die SQLite-Datenbank an (prisma/data/ontrack.db)
+npm run dev              # → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Der **erste registrierte Benutzer** wird automatisch Admin und ist sofort
+freigeschaltet. Alle weiteren Registrierungen müssen vom Admin unter
+**Benutzer** freigeschaltet werden.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Handy-Test im WLAN:** `npm run dev` läuft auch unter `http://<Mac-IP>:3000`.
+Achtung: Kamera (QR-Scan) und GPS funktionieren im Browser nur über HTTPS
+oder localhost — im WLAN ohne HTTPS die manuelle Inventarnummern-Eingabe auf
+der Scan-Seite nutzen. Auf dem VPS mit HTTPS funktioniert beides.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deployment auf dem VPS (Docker)
 
-## Learn More
+```bash
+docker compose up -d --build
+```
 
-To learn more about Next.js, take a look at the following resources:
+Die App läuft dann auf Port 3000; Datenbank und Foto-Uploads liegen in
+Docker-Volumes (`ontrack-db`, `ontrack-uploads`) und überleben Updates.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**HTTPS ist Pflicht** (Kamera + GPS): davor einen Reverse-Proxy setzen,
+z. B. Caddy — kümmert sich automatisch um Zertifikate:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+ontrack.beispiel.de {
+    reverse_proxy localhost:3000
+}
+```
 
-## Deploy on Vercel
+**Nach dem Deployment:** In der App unter **Einstellungen → App-Adresse für
+QR-Codes** die echte Adresse (z. B. `https://ontrack.beispiel.de`) eintragen,
+_bevor_ Etiketten gedruckt werden — sonst zeigen die QR-Codes auf localhost.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Backup
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Die gesamte Datenbank ist eine Datei. Sichern:
+
+```bash
+docker run --rm -v ontrack_ontrack-db:/db -v "$PWD":/backup alpine cp /db/ontrack.db /backup/ontrack-backup.db
+```
+
+Uploads analog aus dem Volume `ontrack_ontrack-uploads`.
+
+## Technik
+
+Next.js 16 (App Router) · Prisma 6 + SQLite · Tailwind CSS v4 · PWA
+QR-Scan: @zxing/browser · Etiketten-PDF: pdf-lib + qrcode

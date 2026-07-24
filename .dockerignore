@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.claude
+.env
+data
+prisma/data
+*.md
+!AGENTS.md

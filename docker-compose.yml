@@ -1,0 +1,14 @@
+services:
+  ontrack:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Datenbank und Uploads überleben Container-Neustarts/-Updates
+      - ontrack-db:/app/prisma/data
+      - ontrack-uploads:/app/data/uploads
+
+volumes:
+  ontrack-db:
+  ontrack-uploads:
