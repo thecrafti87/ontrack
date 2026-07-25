@@ -23,12 +23,13 @@ export default async function DashboardPage() {
   const today = startOfDay(new Date());
   const todayEnd = endOfDay(new Date());
 
-  const [deviceCount, defektGesperrtCount, maintenancePlans, waitingUsers, events, recentLogs] =
+  const [deviceCount, defektGesperrtCount, maintenancePlans, waitingUsers, openFeedbackCount, events, recentLogs] =
     await Promise.all([
       prisma.device.count(),
       prisma.device.count({ where: { status: { in: ["DEFEKT_GEMELDET", "GESPERRT"] } } }),
       prisma.maintenancePlan.findMany({ select: { lastDoneAt: true, intervalMonths: true } }),
       isAdmin ? prisma.user.count({ where: { approved: false } }) : Promise.resolve(0),
+      isAdmin ? prisma.feedback.count({ where: { status: "OFFEN" } }) : Promise.resolve(0),
       prisma.event.findMany({ include: { items: { select: { status: true } } } }),
       prisma.activityLog.findMany({
         take: 8,
@@ -61,9 +62,20 @@ export default async function DashboardPage() {
     },
     { label: "Wartung überfällig", value: overdueMaintenance, href: "/wartung", color: "text-amber-400" },
     ...(isAdmin
-      ? [{ label: "Benutzer wartend", value: waitingUsers, href: "/benutzer", color: "text-amber-400" }]
+      ? [
+          { label: "Benutzer wartend", value: waitingUsers, href: "/benutzer", color: "text-amber-400" },
+          {
+            label: "Offene Feedbacks",
+            value: openFeedbackCount,
+            href: "/feedback",
+            color: openFeedbackCount > 0 ? "text-amber-400" : "text-foreground",
+          },
+        ]
       : []),
   ];
+
+  const kpiGridClass =
+    kpis.length >= 5 ? "md:grid-cols-5" : kpis.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto flex flex-col gap-6">
@@ -77,7 +89,7 @@ export default async function DashboardPage() {
 
       <h1 className="text-2xl font-bold">Willkommen, {user.name}</h1>
 
-      <div className={`grid grid-cols-2 gap-4 ${kpis.length > 3 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
+      <div className={`grid grid-cols-2 gap-4 ${kpiGridClass}`}>
         {kpis.map((kpi) => (
           <Link
             key={kpi.label}

@@ -38,6 +38,7 @@ export default async function MehrPage() {
           </div>
           <NavRow href="/benutzer" icon="👤" label="Benutzer" />
           <NavRow href="/einstellungen" icon="⚙️" label="Einstellungen" />
+          <NavRow href="/feedback" icon="💬" label="Feedback" />
         </>
       )}
 

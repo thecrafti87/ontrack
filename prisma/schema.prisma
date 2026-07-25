@@ -18,10 +18,11 @@ model User {
   approved     Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  sessions Session[]
-  logs     ActivityLog[]
-  issues   Issue[]
-  photos   Photo[]
+  sessions  Session[]
+  logs      ActivityLog[]
+  issues    Issue[]
+  photos    Photo[]
+  feedbacks Feedback[]
 }
 
 model Session {
@@ -258,4 +259,19 @@ model RigFixture {
   device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
 
   @@index([eventId])
+}
+
+// ── Feedback (Kundentest) ────────────────────────────────────────────
+
+/** Freitext-Änderungswunsch, den ein Benutzer direkt von einer Seite aus meldet. */
+model Feedback {
+  id         String    @id @default(cuid())
+  userId     String
+  page       String
+  message    String
+  status     String    @default("OFFEN") // OFFEN | ERLEDIGT
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

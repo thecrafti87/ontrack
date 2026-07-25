@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { FeedbackButton } from "./FeedbackButton";
 
 type AppShellProps = {
   user: { name: string; role: string };
@@ -23,6 +24,7 @@ const MAIN_NAV = [
 const ADMIN_NAV = [
   { href: "/benutzer", label: "Benutzer" },
   { href: "/einstellungen", label: "Einstellungen" },
+  { href: "/feedback", label: "Feedback" },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -125,6 +127,8 @@ export default function AppShell({ user, children }: AppShellProps) {
       </header>
 
       <main className="flex-1 pb-24 md:pb-0">{children}</main>
+
+      <FeedbackButton />
 
       {/* Mobile Bottom-Nav */}
       <nav
