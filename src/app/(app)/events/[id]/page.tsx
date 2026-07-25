@@ -177,6 +177,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const cases = await prisma.case.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
 
+  const rigFixtureCount = await prisma.rigFixture.count({ where: { eventId: event.id } });
+
   const planImageUrl = event.planImage ? `/api/files/${event.planImage}` : null;
   const planItems: PlanItem[] = event.items.map((i) => ({
     id: i.id,
@@ -270,6 +272,19 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           <AddDevicesPicker eventId={event.id} candidates={pickerCandidates} cases={cases} />
         </div>
       )}
+
+      {/* Rig (MVR) */}
+      <div className="card flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="font-semibold">Rig (MVR)</h2>
+          <Link href={`/events/${event.id}/rig`} className="btn-secondary">
+            {rigFixtureCount > 0 ? "Rig ansehen" : "MVR importieren"}
+          </Link>
+        </div>
+        <p className="text-sm text-muted">
+          {rigFixtureCount > 0 ? `${rigFixtureCount} Fixtures importiert` : "Noch kein Rig importiert."}
+        </p>
+      </div>
 
       {/* Veranstaltungsplan */}
       <div className="card flex flex-col gap-4">

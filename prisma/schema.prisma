@@ -83,6 +83,7 @@ model Device {
   eventItems   EventItem[]
   logs         ActivityLog[]
   fieldValues  DeviceFieldValue[]
+  rigFixtures  RigFixture[]
 }
 
 model Case {
@@ -109,8 +110,9 @@ model Event {
   planImage String? // Dateiname des hochgeladenen Veranstaltungsplans
   createdAt DateTime @default(now())
 
-  items EventItem[]
-  logs  ActivityLog[]
+  items       EventItem[]
+  logs        ActivityLog[]
+  rigFixtures RigFixture[]
 }
 
 model EventItem {
@@ -221,4 +223,39 @@ model DeviceFieldValue {
   device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
   @@unique([deviceId, fieldCode])
+}
+
+// ── MVR-Rig-Import ────────────────────────────────────────────────────
+
+/**
+ * Eine Leuchte (Fixture) aus einer importierten MVR-Rig-Datei. installStatus/
+ * actualPosition bilden Soll- (aus der MVR) vs. Ist-Montage ab: Wird auf der
+ * Baustelle umdisponiert, wird hier festgehalten, wohin das Gerät tatsächlich
+ * gewandert ist statt an die ursprünglich geplante Position.
+ */
+model RigFixture {
+  id        String   @id @default(cuid())
+  eventId   String
+  uuid      String
+  fixtureId String?
+  name      String
+  gdtfSpec  String?
+  gdtfMode  String?
+  layerName String?
+  className String?
+  dmxAddresses String?
+  posX      Float?   // Meter (SOLL-Position aus der MVR)
+  posY      Float?
+  posZ      Float?
+  deviceId  String?
+
+  installStatus  String  @default("GEPLANT") // GEPLANT | MONTIERT | ABWEICHEND
+  actualPosition String? // Freitext: tatsächliche Montageposition, nur bei ABWEICHEND
+
+  createdAt DateTime @default(now())
+
+  event  Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
 }

@@ -116,6 +116,27 @@ export default async function DeviceDetailPage({
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const relevantEventItems = device.eventItems.filter((i) => i.event.endDate >= sevenDaysAgo);
 
+  // Rig-Position (Soll aus MVR-Import + Montage-Ist) je Event, in dem dieses Gerät einer Fixture zugeordnet ist
+  const deviceRigFixtures = await prisma.rigFixture.findMany({ where: { deviceId: device.id } });
+  const rigFixtureByEventId = new Map<string, (typeof deviceRigFixtures)[number]>();
+  for (const f of deviceRigFixtures) {
+    if (!rigFixtureByEventId.has(f.eventId)) rigFixtureByEventId.set(f.eventId, f);
+  }
+  const RIG_STATUS_BADGE: Record<string, string> = {
+    GEPLANT: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
+    MONTIERT: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    ABWEICHEND: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  };
+  const RIG_STATUS_LABEL: Record<string, string> = {
+    GEPLANT: "Geplant",
+    MONTIERT: "Montiert",
+    ABWEICHEND: "Abweichend",
+  };
+  function formatRigPos(f: { posX: number | null; posY: number | null; posZ: number | null }): string {
+    const fmt = (v: number | null) => (v == null ? "–" : v.toFixed(2));
+    return `${fmt(f.posX)} / ${fmt(f.posY)} / ${fmt(f.posZ)} m`;
+  }
+
   function nextEventItemLabel(itemStatus: string): string | null {
     const def = EVENT_ITEM_STATUS[itemStatus as EventItemStatus];
     return def?.next ? EVENT_ITEM_STATUS[def.next].label : null;
@@ -308,6 +329,7 @@ export default async function DeviceDetailPage({
           <ul className="flex flex-col gap-3">
             {relevantEventItems.map((item) => {
               const st = EVENT_ITEM_STATUS[item.status as EventItemStatus];
+              const rigFixture = rigFixtureByEventId.get(item.eventId);
               return (
                 <li key={item.id} className="rounded-xl border border-line p-3 flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-3">
@@ -320,6 +342,19 @@ export default async function DeviceDetailPage({
                     {formatDateRange(item.event.startDate, item.event.endDate)}
                     {item.position && <> · {item.position}</>}
                   </p>
+                  {rigFixture && (
+                    <p className="text-xs text-muted flex items-center gap-2 flex-wrap">
+                      <span>
+                        Rig-Position: {rigFixture.layerName?.trim() || "Ohne Layer"} · {formatRigPos(rigFixture)}
+                      </span>
+                      <span className={`badge shrink-0 ${RIG_STATUS_BADGE[rigFixture.installStatus] ?? ""}`}>
+                        {RIG_STATUS_LABEL[rigFixture.installStatus] ?? rigFixture.installStatus}
+                      </span>
+                      {rigFixture.installStatus === "ABWEICHEND" && rigFixture.actualPosition && (
+                        <span className="text-amber-400">→ tatsächlich: {rigFixture.actualPosition}</span>
+                      )}
+                    </p>
+                  )}
                   <AdvanceStatusButton itemId={item.id} nextLabel={nextEventItemLabel(item.status)} />
                 </li>
               );
