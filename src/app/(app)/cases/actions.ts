@@ -275,7 +275,7 @@ export async function scanCheckAction(caseId: string, code: string): Promise<Sca
   const targetCase = await prisma.case.findUnique({ where: { id: caseId } });
   if (!targetCase) return { kind: "error", message: "Case nicht gefunden." };
 
-  const device = await prisma.device.findUnique({
+  let device = await prisma.device.findUnique({
     where: { inventoryNo },
     include: { case: true },
   });
@@ -285,7 +285,14 @@ export async function scanCheckAction(caseId: string, code: string): Promise<Sca
     if (caseMatch) {
       return { kind: "isCase", inventoryNo, message: "Das ist ein Case-Code — bitte Geräte scannen" };
     }
-    return { kind: "unknown", inventoryNo, message: `${inventoryNo} nicht gefunden` };
+    // Barcode-Fallback: Code als Hersteller-Seriennummer suchen (nicht unique → erster Treffer)
+    device = await prisma.device.findFirst({
+      where: { serialNo: inventoryNo },
+      include: { case: true },
+    });
+    if (!device) {
+      return { kind: "unknown", inventoryNo, message: `${inventoryNo} nicht gefunden` };
+    }
   }
 
   if (device.caseId === caseId) {
@@ -342,10 +349,18 @@ export async function assignBatchAction(
   const results: AssignBatchResult[] = [];
 
   for (const item of limited) {
-    const device = await prisma.device.findUnique({
+    let device = await prisma.device.findUnique({
       where: { inventoryNo: item.inventoryNo },
       include: { case: true },
     });
+
+    if (!device) {
+      // Barcode-Fallback analog zur Vorprüfung (Seriennummer)
+      device = await prisma.device.findFirst({
+        where: { serialNo: item.inventoryNo },
+        include: { case: true },
+      });
+    }
 
     if (!device) {
       results.push({ inventoryNo: item.inventoryNo, outcome: "skippedUnknown" });

@@ -85,6 +85,25 @@ dokumentiert. Jede Aktion ist einem Benutzer zugeordnet und nachvollziehbar.
     iOS: Tags mit Dritt-App (z. B. NFC Tools) beschreiben. Hardware-Hinweis:
     On-Metal-Tags (NTAG21x mit Ferritschicht) für Metallgehäuse verwenden.
 
+16b. Barcode-Scan: Der Kamera-Scanner liest neben QR auch 1D-Barcodes
+    (EAN, Code 128 …). Gescannte Codes werden gegen Inventarnummer UND
+    Seriennummer abgeglichen — Geräte lassen sich so auch über den
+    aufgedruckten Hersteller-Barcode finden. (Begriffsklärung: Barcode/QR =
+    Kamera/Optik; NFC = RFID-Nahfunk, bereits umgesetzt; UHF-RFID mit
+    Metern Reichweite und Pulk-Erfassung = eigene Lesegeräte-Hardware → Roadmap.)
+
+16c. MVR-Import (Vectorworks): Pro Event eine MVR-Datei importieren. Der
+    Browser extrahiert per ZIP-Slicing NUR die GeneralSceneDescription.xml
+    (beliebig große MVRs, kein Ressourcen-Entpacken, Datei wird nicht
+    aufbewahrt). Filterdialog nach Layern/Klassen (nur Fixture-Einträge,
+    kein Truss/Szenenobjekte). Gespeichert pro Fixture: Name, FixtureID,
+    UUID, GDTF-Typ/Mode als Text, Layer, Klasse, DMX-Adressen, Endposition
+    in Metern (Layer-/Gruppen-Transformationen einmultipliziert).
+    Auto-Match zum Inventar nur über eindeutige Kennungen (Inventar-/
+    Seriennummer im Fixture-Namen), Rest manuell. Aktionen: gematchte
+    Geräte in die Packliste übernehmen, Positionen auf den
+    Veranstaltungsplan übertragen (Grundriss normalisiert).
+
 16. Technische Zusatzfelder mit Vererbung: Großer eingebauter Feldkatalog
     (DMX-Adresse/-Universum/-Modus, Leistung, Anschlusstyp, Leuchtmittel,
     Traglast, Kabellänge, Frequenzband, Akku u. v. m., gruppiert). Der Admin

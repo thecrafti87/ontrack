@@ -234,13 +234,13 @@ export function ScanAssignClient({ caseId }: { caseId: string }) {
 
       <div className="card flex flex-col gap-3">
         <label className="label" htmlFor="scan-manual">
-          Inventarnummer
+          Inventar- oder Seriennummer
         </label>
         <div className="flex gap-3">
           <input
             id="scan-manual"
             className="input flex-1"
-            placeholder="z. B. OT-0001"
+            placeholder="z. B. OT-0001 oder Seriennummer"
             value={manualValue}
             onChange={(e) => setManualValue(e.target.value)}
             onKeyDown={(e) => {

@@ -30,13 +30,20 @@ export default async function FoundDevicePage({
       redirect(`/cases/${caseRecord.id}`);
     }
 
+    // Barcode-Fallback: gescannte Hersteller-Seriennummer (nicht unique → erster Treffer)
+    const bySerial = await prisma.device.findFirst({ where: { serialNo: inventoryNo } });
+
+    if (bySerial) {
+      redirect(`/geraete/${bySerial.id}?scan=1`);
+    }
+
     return (
       <div className="flex flex-1 flex-col items-center justify-center min-h-full px-4 py-12">
         <div className="w-full max-w-sm card flex flex-col items-center gap-4 text-center">
           <h1 className="text-xl font-bold">Unbekannter Code</h1>
           <p className="text-muted text-sm">
-            Zur Inventarnummer <span className="font-mono">{inventoryNo}</span> wurde kein Gerät
-            gefunden.
+            Zum Code <span className="font-mono">{inventoryNo}</span> wurde kein Gerät gefunden
+            (weder als Inventar- noch als Seriennummer).
           </p>
           <div className="flex flex-col gap-3 w-full">
             <Link href="/scan" className="btn-primary w-full">

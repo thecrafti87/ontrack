@@ -16,5 +16,6 @@ RUN npx prisma generate && npm run build
 
 EXPOSE 3000
 
-# Migrationen beim Start anwenden, dann Server starten
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
+# Datenverzeichnisse sicherstellen (auch bei leerem Volume, z. B. Railway/Render),
+# Migrationen anwenden, dann Server starten
+CMD ["sh", "-c", "mkdir -p /app/data/db /app/data/uploads /app/prisma/data && npx prisma migrate deploy && npm start"]

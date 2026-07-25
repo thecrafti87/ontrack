@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BrowserQRCodeReader } from "@zxing/browser";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 import type { IScannerControls } from "@zxing/browser";
 
 const DEBOUNCE_MS = 3000;
@@ -13,7 +13,8 @@ type QrScannerProps = {
 };
 
 /**
- * Wiederverwendbare Kamera-Scan-Komponente (ZXing-Reader, Rückkamera-Präferenz,
+ * Wiederverwendbare Kamera-Scan-Komponente (ZXing Multi-Format-Reader: QR +
+ * 1D-Barcodes wie EAN-8/13, Code 128, Code 39 …, Rückkamera-Präferenz,
  * Fehlerbehandlung, Entprellung). Kapselt alles Kamera-bezogene — Aufrufer
  * bekommt nur den rohen gescannten Text über onCode.
  */
@@ -30,7 +31,7 @@ export default function QrScanner({ onCode, className }: QrScannerProps) {
 
   useEffect(() => {
     let active = true;
-    const codeReader = new BrowserQRCodeReader();
+    const codeReader = new BrowserMultiFormatReader();
 
     async function start() {
       if (!videoRef.current) return;

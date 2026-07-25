@@ -72,7 +72,7 @@ export default async function DashboardPage() {
         href="/scan"
         className="md:hidden card flex items-center justify-center gap-2 text-center bg-accent text-accent-fg border-accent hover:bg-amber-400 transition-colors min-h-16 font-semibold text-lg"
       >
-        <span className="text-2xl">📷</span> QR-Scan
+        <span className="text-2xl">📷</span> QR-/Barcode-Scan
       </Link>
 
       <h1 className="text-2xl font-bold">Willkommen, {user.name}</h1>
