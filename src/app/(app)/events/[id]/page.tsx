@@ -20,6 +20,7 @@ import {
   DeleteEventForm,
 } from "./PacklistForms";
 import { AddDevicesPicker } from "./AddDevicesPicker";
+import { CollapsibleGroup } from "./CollapsibleGroup";
 import { PlanUploadForm } from "./PlanUploadForm";
 import { PlanBoard, type PlanItem } from "./PlanBoard";
 import { AdvanceStatusButton } from "../itemActions";
@@ -46,11 +47,11 @@ type PacklistItem = {
 function PacklistGroups({
   items,
   editable,
-  defaultOpen,
+  defaultOpenDesktop,
 }: {
   items: PacklistItem[];
   editable: boolean;
-  defaultOpen: boolean;
+  defaultOpenDesktop: boolean;
 }) {
   const groups = groupByCategory(items, (i) => i.device.category);
 
@@ -59,15 +60,20 @@ function PacklistGroups({
       {groups.map(({ category, items: groupItems }) => {
         const packedInGroup = groupItems.filter((i) => i.status !== "GEPLANT").length;
         return (
-          <details key={category} open={defaultOpen} className="rounded-xl border border-line">
-            <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium bg-surface-2 rounded-xl flex items-center justify-between gap-2 flex-wrap">
-              <span>
-                {category} ({groupItems.length})
-              </span>
-              <span className="text-xs text-muted font-normal">
-                {packedInGroup}/{groupItems.length} gepackt
-              </span>
-            </summary>
+          <CollapsibleGroup
+            key={category}
+            defaultOpenDesktop={defaultOpenDesktop}
+            summary={
+              <>
+                <span>
+                  {category} ({groupItems.length})
+                </span>
+                <span className="text-xs text-muted font-normal">
+                  {packedInGroup}/{groupItems.length} gepackt
+                </span>
+              </>
+            }
+          >
             <div className="flex flex-col divide-y divide-line px-1">
               {groupItems.map((item) => {
                 const st = EVENT_ITEM_STATUS[item.status as EventItemStatus];
@@ -100,7 +106,7 @@ function PacklistGroups({
                 );
               })}
             </div>
-          </details>
+          </CollapsibleGroup>
         );
       })}
     </div>
@@ -248,20 +254,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         {event.items.length === 0 ? (
           <p className="text-muted text-sm">Noch keine Geräte eingeplant.</p>
         ) : (
-          <>
-            {/* Desktop: initial offen wenn Gesamtzahl < 30 */}
-            <div className="hidden md:block">
-              <PacklistGroups
-                items={event.items}
-                editable={editable}
-                defaultOpen={total < GROUP_AUTOOPEN_THRESHOLD}
-              />
-            </div>
-            {/* Mobil: Gruppen immer zugeklappt */}
-            <div className="md:hidden">
-              <PacklistGroups items={event.items} editable={editable} defaultOpen={false} />
-            </div>
-          </>
+          /* Desktop initial offen unter Schwellwert, mobil immer zu — via CollapsibleGroup */
+          <PacklistGroups
+            items={event.items}
+            editable={editable}
+            defaultOpenDesktop={total < GROUP_AUTOOPEN_THRESHOLD}
+          />
         )}
       </div>
 
