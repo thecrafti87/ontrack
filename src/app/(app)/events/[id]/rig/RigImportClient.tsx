@@ -175,7 +175,8 @@ export function RigImportClient({
               const file = e.target.files?.[0];
               if (file) handleFile(file);
             }}
-            className="input"
+            aria-label="MVR-Datei"
+            className="input file:mr-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-foreground file:cursor-pointer"
           />
           {error && <p className="text-sm text-red-400">{error}</p>}
           {onCancel && (

@@ -83,6 +83,7 @@ export function NfcWriteCard({ url }: { url: string }) {
           readOnly
           value={url}
           onFocus={(e) => e.currentTarget.select()}
+          aria-label="NFC-URL"
           className="input font-mono text-sm flex-1"
         />
         <button type="button" className="btn-secondary shrink-0" onClick={handleCopy}>

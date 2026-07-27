@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SettingsForm } from "./SettingsForm";
+
+export const metadata: Metadata = { title: "Einstellungen" };
 
 export default async function EinstellungenPage() {
   await requireRole("ADMIN");

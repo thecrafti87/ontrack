@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { CreateLocationForm, LocationRow } from "./StandortForms";
+
+export const metadata: Metadata = { title: "Standorte" };
 
 export default async function StandortePage() {
   const user = await requireUser();

@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireUser, canEdit } from "@/lib/auth";
 import { ImportClient } from "./ImportClient";
+
+export const metadata: Metadata = { title: "Import" };
 
 export default async function ImportPage() {
   const user = await requireUser();

@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { formatDateRange, formatDateTime } from "@/lib/constants";
 import { getMaintenanceDueDate, getMaintenanceUrgency } from "@/lib/maintenance";
+
+export const metadata: Metadata = { title: "Start" };
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -147,7 +150,10 @@ export default async function DashboardPage() {
                     <>
                       {" "}
                       (
-                      <Link href={`/geraete/${log.device.id}`} className="text-accent">
+                      <Link
+                        href={`/geraete/${log.device.id}`}
+                        className="text-accent underline underline-offset-2"
+                      >
                         {log.device.name}
                       </Link>
                       )

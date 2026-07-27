@@ -274,7 +274,8 @@ export function ImportClient() {
               const file = e.target.files?.[0];
               if (file) handleFile(file);
             }}
-            className="input"
+            aria-label="CSV-Datei"
+            className="input file:mr-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-foreground file:cursor-pointer"
           />
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
@@ -318,6 +319,7 @@ export function ImportClient() {
                           next[idx] = e.target.value as FieldKey;
                           setMapping(next);
                         }}
+                        aria-label={`Feld für Spalte „${h || `Spalte ${idx + 1}`}“ zuordnen`}
                         className="input min-h-9 py-1 text-xs font-normal"
                       >
                         {FIELD_OPTIONS.map((opt) => (

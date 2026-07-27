@@ -41,7 +41,7 @@ export function CollapsibleGroup({
       onToggle={(e) => setOpen(e.currentTarget.open)}
       className="rounded-xl border border-line"
     >
-      <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium bg-surface-2 rounded-xl flex items-center justify-between gap-2 flex-wrap">
+      <summary className="cursor-pointer select-none px-3 py-3 md:py-2 text-sm font-medium bg-surface-2 rounded-xl flex items-center justify-between gap-2 flex-wrap">
         {summary}
       </summary>
       {children}

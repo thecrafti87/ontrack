@@ -91,7 +91,12 @@ export function AddDevicesPicker({
           onChange={(e) => setQuery(e.target.value)}
         />
 
-        <div className="flex flex-col gap-1 max-h-80 overflow-y-auto rounded-xl border border-line p-2">
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Geräteliste"
+          className="flex flex-col gap-1 max-h-80 overflow-y-auto rounded-xl border border-line p-2"
+        >
           {filtered.length === 0 && <p className="text-sm text-muted p-2">Keine passenden Geräte.</p>}
           {filtered.map((c) => (
             <label

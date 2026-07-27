@@ -22,7 +22,12 @@ export function StatusChangeForm({
   return (
     <form action={formAction} className="flex flex-col gap-3 md:flex-row md:items-center">
       <input type="hidden" name="deviceId" value={deviceId} />
-      <select name="status" defaultValue={currentStatus} className="input md:max-w-xs">
+      <select
+        name="status"
+        defaultValue={currentStatus}
+        aria-label="Neuer Status"
+        className="input md:max-w-xs"
+      >
         {Object.entries(DEVICE_STATUS).map(([key, val]) => (
           <option key={key} value={key}>
             {val.label}
@@ -51,7 +56,12 @@ export function LocationChangeForm({
   return (
     <form action={formAction} className="flex flex-col gap-3 md:flex-row md:items-center">
       <input type="hidden" name="deviceId" value={deviceId} />
-      <select name="locationId" defaultValue={currentLocationId ?? ""} className="input md:max-w-xs">
+      <select
+        name="locationId"
+        defaultValue={currentLocationId ?? ""}
+        aria-label="Standort"
+        className="input md:max-w-xs"
+      >
         <option value="">Kein Standort</option>
         {locations.map((l) => (
           <option key={l.id} value={l.id}>

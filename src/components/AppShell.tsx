@@ -126,7 +126,10 @@ export default function AppShell({ user, children }: AppShellProps) {
         <span className="text-sm text-muted truncate max-w-[45%]">{user.name}</span>
       </header>
 
-      <main className="flex-1 pb-24 md:pb-0">{children}</main>
+      {/* Zusätzlicher Freiraum unten: Platz für Bottom-Nav + darüber schwebenden
+          Feedback-FAB (mobil bottom-24, size-14) bzw. den Desktop-FAB
+          (bottom-6, size-14), damit beide keinen Seiteninhalt verdecken. */}
+      <main className="flex-1 pb-40 md:pb-20">{children}</main>
 
       <FeedbackButton />
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -46,7 +47,7 @@ function RigFixtureGroups({
     <div className="flex flex-col gap-2">
       {groups.map(({ category, items }) => (
         <details key={category} open={defaultOpen} className="rounded-xl border border-line">
-          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium bg-surface-2 rounded-xl flex items-center justify-between gap-2 flex-wrap">
+          <summary className="cursor-pointer select-none px-3 py-3 md:py-2 text-sm font-medium bg-surface-2 rounded-xl flex items-center justify-between gap-2 flex-wrap">
             <span>
               {category} ({items.length})
             </span>
@@ -147,6 +148,17 @@ function RigFixtureGroups({
   );
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const event = await prisma.event.findUnique({ where: { id }, select: { name: true } });
+  if (!event) return {};
+  return { title: `Rig — ${event.name}` };
+}
+
 export default async function RigPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id: eventId } = await params;
@@ -178,10 +190,13 @@ export default async function RigPage({ params }: { params: Promise<{ id: string
     if (f.deviceId) deviceUsage.set(f.deviceId, (deviceUsage.get(f.deviceId) ?? 0) + 1);
   }
 
-  const lastImportLog = await prisma.activityLog.findFirst({
-    where: { eventId, action: { startsWith: "MVR-Rig importiert" } },
-    orderBy: { createdAt: "desc" },
-  });
+  const lastImportLog =
+    rigFixtures.length > 0
+      ? await prisma.activityLog.findFirst({
+          where: { eventId, action: { startsWith: "MVR-Rig importiert" } },
+          orderBy: { createdAt: "desc" },
+        })
+      : null;
 
   const groups = groupByCategory(rigFixtures, (f) => f.layerName);
 

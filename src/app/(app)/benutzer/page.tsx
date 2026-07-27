@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { formatDate, type Role } from "@/lib/constants";
 import { ApproveUserForm, RoleForm, DeactivateUserForm, DeleteUserForm } from "./forms";
+
+export const metadata: Metadata = { title: "Benutzer" };
 
 const STATUS_BADGE = {
   approved: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",

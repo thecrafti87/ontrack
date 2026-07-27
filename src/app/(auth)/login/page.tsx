@@ -8,7 +8,7 @@ export default function LoginPage() {
   const [state, formAction, pending] = useActionState(loginAction, undefined);
 
   return (
-    <div className="card">
+    <main className="card">
       <h2 className="text-xl font-semibold mb-4">Anmelden</h2>
       <form action={formAction} className="flex flex-col gap-4">
         <div>
@@ -57,6 +57,6 @@ export default function LoginPage() {
           Registrieren
         </Link>
       </p>
-    </div>
+    </main>
   );
 }

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -80,9 +81,12 @@ function PacklistGroups({
                 return (
                   <div
                     key={item.id}
-                    className="flex flex-col md:flex-row md:items-center gap-2 py-2 px-2 min-h-11"
+                    className="flex flex-col md:flex-row md:items-center gap-2 py-3 md:py-2 px-2 min-h-11"
                   >
-                    <Link href={`/geraete/${item.device.id}`} className="min-w-0 flex-1 hover:text-accent">
+                    <Link
+                      href={`/geraete/${item.device.id}`}
+                      className="min-w-0 flex-1 min-h-11 flex flex-col justify-center hover:text-accent"
+                    >
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium truncate">{item.device.name}</span>
                         <span className={`badge shrink-0 ${st?.badge ?? ""}`}>
@@ -111,6 +115,17 @@ function PacklistGroups({
       })}
     </div>
   );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const event = await prisma.event.findUnique({ where: { id }, select: { name: true } });
+  if (!event) return {};
+  return { title: event.name };
 }
 
 export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {

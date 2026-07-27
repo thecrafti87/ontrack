@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -33,15 +34,21 @@ function CaseDeviceGroups({
     <div className="flex flex-col gap-2">
       {groups.map(({ category, items }) => (
         <details key={category} open={defaultOpen} className="rounded-xl border border-line">
-          <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium bg-surface-2 rounded-xl">
+          <summary className="cursor-pointer select-none px-3 py-3 md:py-2 text-sm font-medium bg-surface-2 rounded-xl">
             {category} ({items.length})
           </summary>
           <div className="flex flex-col divide-y divide-line px-1">
             {items.map((device) => {
               const st = DEVICE_STATUS[device.status as DeviceStatus];
               return (
-                <div key={device.id} className="flex items-center justify-between gap-2 py-2 px-2 min-h-11">
-                  <Link href={`/geraete/${device.id}`} className="min-w-0 flex-1 hover:text-accent">
+                <div
+                  key={device.id}
+                  className="flex items-center justify-between gap-2 py-3 md:py-2 px-2 min-h-11"
+                >
+                  <Link
+                    href={`/geraete/${device.id}`}
+                    className="min-w-0 flex-1 min-h-11 flex flex-col justify-center hover:text-accent"
+                  >
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium truncate">{device.name}</span>
                       <span className={`badge shrink-0 ${st?.badge ?? ""}`}>{st?.label ?? device.status}</span>
@@ -57,6 +64,17 @@ function CaseDeviceGroups({
       ))}
     </div>
   );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const caseRecord = await prisma.case.findUnique({ where: { id }, select: { name: true } });
+  if (!caseRecord) return {};
+  return { title: caseRecord.name };
 }
 
 export default async function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {

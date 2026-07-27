@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +42,17 @@ const URGENCY_BADGE_CLASSES: Record<string, string> = {
   soon: "bg-amber-500/15 text-amber-400 border-amber-500/30",
   later: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const device = await prisma.device.findUnique({ where: { id }, select: { name: true } });
+  if (!device) return {};
+  return { title: device.name };
+}
 
 export default async function DeviceDetailPage({
   params,
@@ -192,8 +204,6 @@ export default async function DeviceDetailPage({
           </Link>
         </div>
       </div>
-
-      <NfcWriteCard url={`${baseUrl}/d/${device.inventoryNo}`} />
 
       {editable && (
         <div className="card">
@@ -473,6 +483,8 @@ export default async function DeviceDetailPage({
           </ul>
         )}
       </div>
+
+      <NfcWriteCard url={`${baseUrl}/d/${device.inventoryNo}`} />
     </div>
   );
 }

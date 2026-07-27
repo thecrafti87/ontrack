@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/constants";
 import { ResolveFeedbackButton } from "./ResolveFeedbackButton";
+
+export const metadata: Metadata = { title: "Feedback" };
 
 function PageRef({ page }: { page: string }) {
   if (page.startsWith("/")) {

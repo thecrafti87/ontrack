@@ -36,7 +36,12 @@ export function RoleForm({ userId, currentRole }: { userId: string; currentRole:
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="id" value={userId} />
-      <select name="role" defaultValue={currentRole} className="input min-h-10 py-1 max-w-48">
+      <select
+        name="role"
+        defaultValue={currentRole}
+        aria-label="Rolle"
+        className="input min-h-10 py-1 max-w-48"
+      >
         {Object.entries(ROLES).map(([key, val]) => (
           <option key={key} value={key}>
             {val.label}

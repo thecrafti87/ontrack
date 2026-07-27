@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { CaseTableRow } from "./CaseTableRow";
+
+export const metadata: Metadata = { title: "Cases" };
 
 export default async function CasesPage() {
   const user = await requireUser();

@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { formatDate } from "@/lib/constants";
 import { getMaintenanceDueDate, getMaintenanceUrgency, type MaintenanceUrgency } from "@/lib/maintenance";
 import { CompleteMaintenanceForm } from "../geraete/maintenanceForms";
+
+export const metadata: Metadata = { title: "Wartung" };
 
 type PlanRow = {
   id: string;

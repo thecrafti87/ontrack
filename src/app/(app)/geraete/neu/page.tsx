@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import DeviceForm from "../DeviceForm";
+
+export const metadata: Metadata = { title: "Neues Gerät" };
 
 function nextInventoryNumber(existingNumbers: string[]): string {
   let max = 0;

@@ -8,7 +8,7 @@ export default function RegisterPage() {
   const [state, formAction, pending] = useActionState(registerAction, undefined);
 
   return (
-    <div className="card">
+    <main className="card">
       <h2 className="text-xl font-semibold mb-4">Konto erstellen</h2>
       <form action={formAction} className="flex flex-col gap-4">
         <div>
@@ -89,6 +89,6 @@ export default function RegisterPage() {
           Anmelden
         </Link>
       </p>
-    </div>
+    </main>
   );
 }

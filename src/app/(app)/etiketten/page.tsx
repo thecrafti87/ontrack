@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { EtikettenPicker } from "./EtikettenPicker";
+
+export const metadata: Metadata = { title: "Etiketten drucken" };
 
 export default async function EtikettenPage() {
   await requireUser();

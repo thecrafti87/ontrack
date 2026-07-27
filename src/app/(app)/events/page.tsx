@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { formatDateRange } from "@/lib/constants";
 import { CreateEventForm } from "./CreateEventForm";
+
+export const metadata: Metadata = { title: "Events" };
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);

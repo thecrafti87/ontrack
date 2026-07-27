@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { DEVICE_STATUS, type DeviceStatus } from "@/lib/constants";
 import { DeviceTableRow } from "./DeviceTableRow";
+import { FilterBar } from "./FilterBar";
+
+export const metadata: Metadata = { title: "Geräte" };
 
 const PAGE_SIZE = 50;
 
@@ -109,32 +114,33 @@ export default async function GeraetePage({
         )}
       </div>
 
-      <form method="get" className="flex flex-col md:flex-row gap-3">
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          placeholder="Suche nach Name, Inventarnummer, Kategorie…"
-          className="input flex-1"
+      <Suspense fallback={<div className="h-12" />}>
+        <FilterBar
+          searchPlaceholder="Suche nach Name, Inventarnummer, Kategorie…"
+          selects={[
+            {
+              param: "kategorie",
+              ariaLabel: "Nach Kategorie filtern",
+              className: "input md:w-48",
+              options: [
+                { value: "", label: "Alle Kategorien" },
+                ...categories.map((c) => ({ value: c, label: c })),
+              ],
+            },
+            {
+              param: "sort",
+              ariaLabel: "Sortierung",
+              className: "input md:w-40",
+              defaultValue: "nummer",
+              options: [
+                { value: "nummer", label: "Nummer" },
+                { value: "name", label: "Name" },
+                { value: "status", label: "Status" },
+              ],
+            },
+          ]}
         />
-        <select name="kategorie" defaultValue={kategorie ?? ""} className="input md:w-48">
-          <option value="">Alle Kategorien</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select name="sort" defaultValue={sort} className="input md:w-40">
-          <option value="nummer">Sortierung: Nummer</option>
-          <option value="name">Sortierung: Name</option>
-          <option value="status">Sortierung: Status</option>
-        </select>
-        {status && <input type="hidden" name="status" value={status} />}
-        <button type="submit" className="btn-secondary shrink-0">
-          Filtern
-        </button>
-      </form>
+      </Suspense>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         <Link
