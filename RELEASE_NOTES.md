@@ -7,9 +7,12 @@ Veranstaltungstechnik, jetzt auch als Desktop-App für macOS, Windows und Linux.
 | --- | --- |
 | macOS (Apple Silicon) | `OnTrack-1.0.0-arm64.dmg` |
 | macOS (Intel) | `OnTrack-1.0.0.dmg` |
-| Windows 10/11 | `OnTrack-Setup-1.0.0.exe` |
+| Windows 10/11 | `OnTrack.Setup.1.0.0.exe` |
 | Linux (universell) | `OnTrack-1.0.0.AppImage` |
 | Debian / Ubuntu | `ontrack_1.0.0_amd64.deb` |
+
+Die beiden `*-mac.zip` sind dieselben App-Bundles ohne DMG-Hülle — nur
+nötig, wenn du die App ohne Installer entpacken willst.
 
 Die Installer sind **nicht signiert**. macOS: beim ersten Start Rechtsklick →
 Öffnen. Windows: SmartScreen → Weitere Informationen → Trotzdem ausführen.
