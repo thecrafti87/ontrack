@@ -8,14 +8,19 @@ RUN npm ci
 
 COPY . .
 
-# Datenbank-Pfad relativ zur prisma/schema.prisma → /app/prisma/data/ontrack.db
-ENV DATABASE_URL="file:./data/ontrack.db"
+# Absolute Pfade: der Standalone-Server wechselt beim Start in sein eigenes
+# Verzeichnis (process.chdir), relative Angaben würden dadurch am Volume
+# vorbeizeigen.
+ENV DATABASE_URL="file:/app/prisma/data/ontrack.db"
+ENV ONTRACK_DATA_DIR="/app/data"
 ENV NODE_ENV=production
 
-RUN npx prisma generate && npm run build
+# build:standalone erzeugt zusätzlich .next/standalone samt public/ und
+# .next/static — "next start" funktioniert mit output: "standalone" nicht.
+RUN npm run build:standalone
 
 EXPOSE 3000
 
 # Datenverzeichnisse sicherstellen (auch bei leerem Volume, z. B. Railway/Render),
 # Migrationen anwenden, dann Server starten
-CMD ["sh", "-c", "mkdir -p /app/data/db /app/data/uploads /app/prisma/data && npx prisma migrate deploy && npm start"]
+CMD ["sh", "-c", "mkdir -p /app/data/uploads /app/prisma/data && npx prisma migrate deploy && node .next/standalone/server.js"]

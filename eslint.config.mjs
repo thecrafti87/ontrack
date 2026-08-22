@@ -12,7 +12,19 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Build-Ausgabe des Desktop-Pakets und lokale Arbeitskopien:
+    "release/**",
+    ".claude/**",
   ]),
+  {
+    // Electrons Hauptprozess läuft als CommonJS; die Server-Nutzlast wird
+    // zur Laufzeit über einen berechneten Pfad geladen. Beides geht nur
+    // mit require().
+    files: ["electron/**/*.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

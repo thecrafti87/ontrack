@@ -1,0 +1,73 @@
+appId: de.ontrack.desktop
+productName: OnTrack
+copyright: © 2026 Bezi
+
+directories:
+  output: release
+  buildResources: build
+
+# Nur der Electron-Rahmen kommt ins asar-Archiv. Der eigentliche Next.js-Server
+# liegt daneben unter resources/ — als Kindprozess gestartet könnte er aus
+# einem asar-Archiv heraus weder seine native Prisma-Engine laden noch Dateien
+# nachladen.
+files:
+  - electron/**/*
+  - package.json
+  - "!node_modules/**/*"
+
+asar: true
+afterPack: build/after-pack.js
+
+mac:
+  category: public.app-category.business
+  icon: build/icon.png
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  # Ohne Apple-Developer-Zertifikat wird nicht notarisiert; after-pack.js
+  # setzt stattdessen eine Ad-hoc-Signatur, sonst startet die App auf
+  # Apple Silicon gar nicht.
+  identity: null
+  extendInfo:
+    NSCameraUsageDescription: OnTrack benötigt die Kamera zum Scannen von QR-Codes auf Geräteetiketten.
+    NSLocationWhenInUseUsageDescription: OnTrack speichert auf Wunsch den Standort eines Scans, damit Geräte wiedergefunden werden können.
+
+dmg:
+  title: OnTrack ${version}
+  contents:
+    - x: 140
+      y: 200
+      type: file
+    - x: 400
+      y: 200
+      type: link
+      path: /Applications
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: OnTrack
+
+linux:
+  icon: build/icon.png
+  category: Office
+  synopsis: Inventar- und Einsatz-Tracking für Veranstaltungstechnik
+  desktop:
+    entry:
+      Name: OnTrack
+      Comment: Inventar- und Einsatz-Tracking für Veranstaltungstechnik
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]

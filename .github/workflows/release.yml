@@ -1,0 +1,107 @@
+name: Release
+
+# Ausgelöst durch einen Versions-Tag (v1.0.0) oder von Hand.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            label: macOS
+            target: --mac
+            artifacts: |
+              release/*.dmg
+              release/*.zip
+          - os: windows-latest
+            label: Windows
+            target: --win
+            artifacts: release/*.exe
+          - os: ubuntu-latest
+            label: Linux
+            target: --linux
+            artifacts: |
+              release/*.AppImage
+              release/*.deb
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Erzeugt zugleich den Prisma-Client mit der nativen Query-Engine des
+      # jeweiligen Runners — deshalb baut jede Plattform auf ihrem eigenen
+      # System statt per Cross-Compile.
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      # Der Build läuft ohne .env. Die Datenbank liegt bewusst außerhalb des
+      # Projektordners: Next.js' Datei-Tracing folgt dem Datenbankpfad und
+      # würde sie sonst in den Standalone-Output kopieren.
+      - name: Build-Datenbank anlegen
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: file:${{ runner.temp }}/ontrack-build.db
+
+      - name: Next.js-Server bauen
+        run: npm run build:standalone
+        env:
+          DATABASE_URL: file:${{ runner.temp }}/ontrack-build.db
+
+      - name: Installer bauen
+        run: npx electron-builder ${{ matrix.target }} --publish never
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Ohne Apple-Developer-Zertifikat: nicht nach Zertifikaten suchen.
+          # build/after-pack.js setzt stattdessen eine Ad-hoc-Signatur.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ontrack-${{ matrix.label }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Release veröffentlichen
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Prüfsummen erzeugen
+        working-directory: artifacts
+        run: |
+          ls -la
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: GitHub-Release anlegen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "OnTrack ${GITHUB_REF_NAME}" \
+            --notes-file RELEASE_NOTES.md \
+            artifacts/*

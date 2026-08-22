@@ -3,6 +3,25 @@
 Inventar- und Einsatz-Tracking für Veranstaltungstechnik mit QR-Codes.
 Konzept und Feature-Liste: [KONZEPT.md](KONZEPT.md)
 
+## Installieren
+
+**Als Desktop-App** (macOS, Windows, Linux) — nichts weiter nötig, Installer
+doppelklicken: **[Releases](https://github.com/thecrafti87/ontrack/releases)**.
+Anleitung und Grenzen der Desktop-Version: [DESKTOP.md](DESKTOP.md).
+
+**Als Server** (empfohlen, wenn Handys scannen sollen oder mehrere Personen
+gleichzeitig arbeiten): siehe [Deployment](#deployment-auf-dem-vps-docker)
+weiter unten.
+
+Wann was passt:
+
+| | Desktop-App | Server |
+| --- | --- | --- |
+| Einrichtung | Installer doppelklicken | Docker + Reverse-Proxy |
+| Kamera-Scan am Handy | ❌ | ✅ |
+| Standort beim Scan (GPS) | ❌ | ✅ |
+| Mehrere Personen / Geräte | ❌ Daten bleiben lokal | ✅ |
+
 ## Lokal entwickeln & testen
 
 ```bash
@@ -56,3 +75,11 @@ Uploads analog aus dem Volume `ontrack_ontrack-uploads`.
 
 Next.js 16 (App Router) · Prisma 6 + SQLite · Tailwind CSS v4 · PWA
 QR-Scan: @zxing/browser · Etiketten-PDF: pdf-lib + qrcode
+Desktop-Build: Electron 43 + electron-builder
+
+## Lizenz
+
+Der Quellcode ist öffentlich einsehbar, aber **nicht Open Source**. Die
+veröffentlichten Installer dürfen kostenfrei genutzt werden, auch im eigenen
+Unternehmen. Weitergabe, Veränderung und der Betrieb als Dienst für Dritte
+bedürfen der Zustimmung — siehe [LICENSE](LICENSE).

@@ -1,0 +1,73 @@
+OnTrack — Lizenzbedingungen
+Copyright © 2026 Bezi. Alle Rechte vorbehalten.
+
+Der Quellcode dieses Projekts ist öffentlich einsehbar. Er ist NICHT Open
+Source: es werden keine Rechte eingeräumt, die über die unten ausdrücklich
+genannten hinausgehen.
+
+
+1. Einsehen des Quellcodes
+
+Jede Person darf den Quellcode lesen, herunterladen und zum Zweck der
+Bewertung, der Sicherheitsprüfung oder des Lernens studieren.
+
+
+2. Nutzung der veröffentlichten Programme
+
+Die unter "Releases" veröffentlichten Installationsdateien (macOS, Windows,
+Linux) dürfen heruntergeladen, installiert und im eigenen Betrieb sowie zu
+Testzwecken unentgeltlich genutzt werden — einschließlich der Nutzung im
+eigenen Unternehmen. Diese Erlaubnis ist einfach, nicht ausschließlich,
+jederzeit widerruflich und nicht übertragbar.
+
+
+3. Was nicht erlaubt ist
+
+Ohne vorherige schriftliche Zustimmung des Rechteinhabers ist insbesondere
+untersagt:
+
+  a) das Weitergeben, Verkaufen, Vermieten oder Unterlizenzieren des
+     Quellcodes oder der Programme an Dritte;
+  b) das Betreiben der Software als Dienstleistung für Dritte (Hosting,
+     SaaS, Managed Service);
+  c) das Verändern des Quellcodes und das Verbreiten veränderter Fassungen;
+  d) die Verwendung des Quellcodes oder von Teilen davon in eigenen
+     Produkten;
+  e) das Entfernen oder Verändern von Urheber- und Lizenzhinweisen.
+
+Beiträge über Pull Requests sind willkommen. Mit dem Einreichen räumst du
+dem Rechteinhaber ein einfaches, unentgeltliches und übertragbares Recht
+zur Nutzung deines Beitrags in diesem Projekt ein.
+
+
+4. Gewährleistung und Haftung
+
+Die Software wird "wie besehen" bereitgestellt, ohne jede ausdrückliche
+oder stillschweigende Gewährleistung, insbesondere ohne Gewährleistung der
+Marktgängigkeit, der Eignung für einen bestimmten Zweck oder der
+Nichtverletzung von Rechten Dritter.
+
+Der Rechteinhaber haftet nicht für Schäden, die aus der Nutzung oder der
+Unmöglichkeit der Nutzung der Software entstehen — insbesondere nicht für
+Datenverlust. Die Nutzung erfolgt auf eigenes Risiko; für regelmäßige
+Sicherungen ist die nutzende Person selbst verantwortlich. Zwingende
+gesetzliche Haftung (etwa bei Vorsatz, grober Fahrlässigkeit oder nach dem
+Produkthaftungsgesetz) bleibt unberührt.
+
+
+5. Abweichende Vereinbarungen
+
+Für Nutzungen, die über Abschnitt 2 hinausgehen, können gesonderte Lizenzen
+vereinbart werden. Anfragen über die Kontaktdaten im Repository.
+
+
+─────────────────────────────────────────────────────────────────────────
+
+ENGLISH SUMMARY (non-binding — the German text above is authoritative)
+
+The source code is publicly viewable but NOT open source. You may read and
+study it, and you may download, install and run the published releases free
+of charge, including within your own organisation. You may not redistribute,
+sell, sublicense, modify and distribute, offer as a hosted service, or reuse
+the code in your own products without prior written permission. The software
+comes with no warranty and no liability for damages, including data loss.

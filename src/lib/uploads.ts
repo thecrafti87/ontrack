@@ -3,7 +3,10 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
-const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads");
+// Datenverzeichnis: im Desktop-Build zeigt ONTRACK_DATA_DIR in den
+// Benutzerordner, sonst gilt wie bisher <cwd>/data (Docker, npm start).
+const DATA_DIR = process.env.ONTRACK_DATA_DIR ?? path.join(process.cwd(), "data");
+const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 
 const ALLOWED_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf"]);
 

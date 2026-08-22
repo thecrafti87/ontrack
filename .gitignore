@@ -18,7 +18,9 @@
 /out/
 
 # production
-/build
+# Hinweis: /build wird NICHT ignoriert — dort liegen die Bau-Ressourcen
+# des Desktop-Pakets (Icon, after-pack.js). Die Build-Ausgabe liegt in
+# .next/ und /release.
 
 # misc
 .DS_Store
@@ -44,4 +46,8 @@ next-env.d.ts
 prisma/data/
 data/
 .claude/settings.local.json
+.claude/worktrees/
 *.mvr
+
+# Desktop-Builds (Installer werden über GitHub Releases verteilt)
+/release
