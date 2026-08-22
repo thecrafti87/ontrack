@@ -23,4 +23,7 @@ EXPOSE 3000
 
 # Datenverzeichnisse sicherstellen (auch bei leerem Volume, z. B. Railway/Render),
 # Migrationen anwenden, dann Server starten
-CMD ["sh", "-c", "mkdir -p /app/data/uploads /app/prisma/data && npx prisma migrate deploy && node .next/standalone/server.js"]
+# /app/data/db muss mit angelegt werden: DEPLOY.md lässt Railway und Render
+# DATABASE_URL auf file:/app/data/db/ontrack.db zeigen, und migrate deploy
+# scheitert an einem fehlenden Verzeichnis.
+CMD ["sh", "-c", "mkdir -p /app/data/db /app/data/uploads /app/prisma/data && npx prisma migrate deploy && node .next/standalone/server.js"]
