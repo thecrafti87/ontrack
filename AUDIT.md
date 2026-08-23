@@ -162,7 +162,7 @@ Chip-Reihe abgeschnitten („Gesperr…"), der Suchtext ebenfalls („…Kate").
 Trefferanzahl. Und die Zeilen sollten zeigen, was im Einsatz zählt: in welchem Case,
 auf welchem Event, Prüfung fällig — statt nur des Status.
 
-### B3 · Die untere Leiste passt nicht zur Arbeit — verschärft (23.08.2026)
+### B3 · Die untere Leiste passt nicht zur Arbeit — Desktop erledigt (23.08.2026)
 
 „Events" hat einen festen Platz, obwohl man es selten öffnet; „Cases", „Standorte",
 „Wartung", „Etiketten" liegen alle unter „Mehr" — einer flachen Liste aus acht
@@ -180,11 +180,18 @@ also erreichbar — nur ohne sichtbare Scrollleiste und ohne Mausrad-Unterstütz
 praktisch verborgen. Schlecht auffindbar, nicht unbedienbar. Ich hatte
 geschlossen, ohne den Scrollweg zu prüfen.
 
-**Behoben (23.08.2026):** Die Leiste bricht jetzt um statt zu scrollen
-(`flex-wrap`, Kopfhöhe wächst mit). Geprüft bei 820, 1100 und 1500 px: kein
-Überlauf, kein verdeckter Eintrag, kein waagerechtes Scrollen der Seite. Ab
-etwa 1400 px bleibt es bei einer Reihe. Die eigentliche Neuordnung der
-Navigation bleibt Teil dieses Befunds.
+**Behoben (23.08.2026), in zwei Schritten:** Zuerst brach die Leiste um
+statt zu scrollen. Das machte alles sichtbar, war aber immer noch eine
+flache Liste aus zwölf gleichrangigen Einträgen. Deshalb danach nach Zweck
+geordnet: Vier tägliche Ziele bleiben sichtbar (Start, Einsatz, Geräte,
+Events), der Rest liegt in den Gruppen „Bestand" und „Verwaltung", die bei
+Klick daneben und bei Escape schließen. Die „Mehr"-Seite trägt dieselbe
+Ordnung, damit Handy und Desktop nicht auseinanderlaufen. Geprüft bei 820,
+1100 und 1280 px.
+
+**Offen bleibt die untere Leiste auf dem Handy:** „Events" hat dort
+weiterhin einen festen Platz. Immerhin führt der große mittlere Knopf jetzt
+in den laufenden Einsatz statt in den freien Scan.
 
 ### B4 · Der Feedback-Knopf steht überall im Weg
 
@@ -192,11 +199,23 @@ Er schwebt auf jeder Seite über dem Inhalt, ist genauso auffällig wie der Scan
 und verdeckt auf mehreren Seiten Text. Er war für den Kundentest gedacht — im
 Produkt gehört er in die Fußzeile oder unter „Mehr".
 
-### B5 · Die Scan-Seite hilft nicht, wenn sie nicht kann
+### B5 · Die Scan-Seite hilft nicht, wenn sie nicht kann — behoben (23.08.2026)
 
 Schlägt der Kamerazugriff fehl, erscheint der technische Fehlertext
 (`NotAllowedError: Permission denied`) und eine iPhone-Anleitung — auch auf Android
 und am Desktop. Darunter ist die Seite leer.
+
+**Behoben:** Der Scanner prüft jetzt `window.isSecureContext`, bevor er es
+versucht, und benennt die Ursache samt aufgerufener Adresse. Vorher zeigte
+er in diesem Fall einen Hinweis auf fehlende Kamera-Berechtigungen — man
+suchte in den iPhone-Einstellungen nach einem Schalter, der nichts ändert.
+Der Berechtigungshinweis bleibt für den Fall, dass wirklich die Freigabe
+fehlt, jetzt auch mit dem Weg für Android.
+
+**Wichtig zu wissen, unabhängig vom Code:** Kamera-Scan am Handy setzt
+HTTPS voraus. Über die Netzwerkfreigabe der Desktop-App (nur HTTP) gibt es
+ihn nicht — dort bleibt die manuelle Eingabe. Für den Handy-Scan im Alltag
+braucht OnTrack einen Server mit HTTPS.
 
 ### B6 · Fehlende Seitentitel
 
@@ -274,18 +293,30 @@ Nicht in dieser Stufe erledigt und bewusst offen geblieben:
   Server-Aktionen mit `requireUser`, brauchen also einen Request-Kontext im Test.
 - **A5 (Sicherung im laufenden Betrieb)** war nie Teil von Stufe 1.
 
-### Stufe 2 — Der Einsatzmodus (die eigentliche Antwort auf „einfach")
+### Stufe 2 — Der Einsatzmodus — abgeschlossen 23.08.2026
 
 Ein laufender Auftrag, den man einmal wählt und der danach alles steuert.
 
-| Was | Warum | Aufwand |
+| Was | Warum | Stand |
 |---|---|---|
-| „Einsatz starten" auf dem Event: packen / aufbauen / abbauen / zurückräumen | Ein Modus statt vieler Bildschirme | ~2 Tage |
-| Scan hakt im aktiven Modus direkt ab, statt nur die Geräteseite zu zeigen | Der Scan bekommt endlich Bedeutung | ~1,5 Tage |
-| Dauer-Scan: Gerät nach Gerät ohne Zwischenklick, mit Ton und Fortschritt | So arbeitet man beim Verladen wirklich | ~1,5 Tage |
-| Dashboard zeigt den laufenden Einsatz statt Zählern (B1) | Beantwortet „was ist jetzt zu tun" | ~1 Tag |
-| Packliste als echte Arbeitsliste, offen statt zugeklappt (B2) | Die Liste ist der Zweck der Seite | ~1 Tag |
-| Planung von der Ausführung trennen | In der Halle keine Verwaltungsknöpfe | ~0,5 Tage |
+| „Einsatz starten": packen / aufbauen / abbauen / zurückräumen | Ein Modus statt vieler Bildschirme | ✅ erledigt |
+| Scan hakt im aktiven Modus direkt ab | Der Scan bekommt endlich Bedeutung | ✅ erledigt |
+| Dauer-Scan mit Ton und Fortschritt | So arbeitet man beim Verladen wirklich | ✅ erledigt |
+| Dashboard zeigt den laufenden Einsatz statt Zählern (B1) | Beantwortet „was ist jetzt zu tun" | ✅ erledigt |
+| Packliste offen statt zugeklappt (B2) | Die Liste ist der Zweck der Seite | ✅ erledigt |
+| Planung von der Ausführung trennen | In der Halle keine Verwaltungsknöpfe | ⚠️ nur teilweise |
+
+**Zum letzten Punkt:** Der Einsatzmodus führt in eine eigene Seite ohne
+Verwaltungsknöpfe, und die untere Leiste führt dorthin statt in den freien
+Scan. Die Event-Seite selbst zeigt aber weiterhin alle Planungswerkzeuge —
+Geräte hinzufügen, Plan hochladen, Gefahrenzone — auch während ein Einsatz
+läuft. Eine echte Trennung wäre, diese Bereiche im laufenden Einsatz
+einzuklappen. Bewusst offen gelassen.
+
+**Regel, die den Kern trägt:** Ein Scan bucht nie rückwärts. Ein beim
+Packen gescanntes, längst aufgebautes Gerät wird nicht zurückgestuft,
+sondern als „war schon eingepackt" gemeldet. Durch Tests und einen
+Browsertest abgesichert.
 
 ### Stufe 3 — Bedienung entschlacken
 
