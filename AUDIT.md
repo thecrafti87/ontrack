@@ -53,7 +53,7 @@ die Bedienung an genau der Stelle einfacher, an der es zählt.
 Diese Punkte sind keine Geschmacksfrage. Solange sie offen sind, sollte niemand
 seinen Bestand ernsthaft in OnTrack führen.
 
-### A1 · Vergessenes Passwort sperrt dauerhaft aus
+### A1 · Vergessenes Passwort sperrt dauerhaft aus — ✅ behoben (23.08.2026)
 
 Es gibt **keinerlei** Wiederherstellung: kein „Passwort vergessen", kein Ändern im
 angemeldeten Zustand, und der Admin kann in der Benutzerverwaltung nur freischalten,
@@ -65,9 +65,20 @@ theoretisch — er ist schon eingetreten, und die Lösung war Datenbank-Chirurgi
 
 **Nötig:** Admin kann ein Passwort zurücksetzen (Einmal-Link oder gesetztes
 Startpasswort) · Benutzer kann sein Passwort ändern · Mindestens ein Admin muss
-immer existieren (heute ungeprüft — der letzte Admin kann sich selbst löschen).
+immer existieren.
 
-### A2 · Kein Export
+**Umgesetzt:** `/konto` für die eigene Passwortänderung (mit Abfrage des alten),
+Zurücksetzen durch den Admin mit einmalig angezeigtem Startpasswort. Jede Änderung
+beendet die übrigen Sitzungen des Betroffenen. Kein E-Mail-Versand — die App hat
+keine Mail-Infrastruktur, die Desktop-Fassung könnte gar keine verschicken.
+
+**Korrektur zu diesem Befund:** Der Zusatz „der letzte Admin kann sich selbst
+löschen" war **falsch**. Herabstufen und Deaktivieren des letzten freigeschalteten
+Admins sind bereits blockiert (`countOtherApprovedAdmins`), Selbstlöschen und
+Selbstdeaktivieren ebenfalls. Ich hatte das behauptet, ohne es zu prüfen. Das
+Verhalten ist jetzt durch Tests abgesichert.
+
+### A2 · Kein Export — ✅ behoben (23.08.2026)
 
 CSV-Import und MVR-Import sind da, aber es gibt keinen Weg heraus. Für den
 Versicherungsfall, die Steuer, eine Übergabe oder schlicht das Vertrauen, dass die
@@ -76,12 +87,24 @@ Daten dir gehören, ist das zu wenig.
 **Nötig:** Inventarliste als CSV und als PDF · Packliste eines Events als PDF
 (die nimmt man ohnehin ausgedruckt mit) · Prüfnachweise als PDF-Sammlung.
 
-### A3 · Anmeldung ungeschützt
+**Umgesetzt:** `/api/export/inventar?format=csv|pdf` und
+`/api/export/packliste/[eventId]`. Der Export umfasst immer den ganzen Bestand,
+nie den eingestellten Listenausschnitt. **Offen geblieben:** die Prüfnachweise als
+PDF-Sammlung — die gehören zu den Prüfprotokollen und folgen dort.
+
+### A3 · Anmeldung ungeschützt — ✅ behoben (23.08.2026)
 
 Kein Rate-Limiting. Passwörter lassen sich beliebig oft durchprobieren. Sobald die
 Instanz öffentlich erreichbar ist, ist das eine offene Tür.
 
-### A4 · Keine automatisierten Tests
+**Umgesetzt:** `src/lib/rateLimit.ts` — 5 Fehlversuche je Konto und 25 je
+Herkunftsadresse in 15 Minuten. Im Arbeitsspeicher statt in der Datenbank, weil
+OnTrack als einzelner Prozess läuft; ein Neustart setzt die Zähler zurück, was
+vertretbar ist, da ein Angreifer ihn nicht auslösen kann. Die Bremse greift vor der
+Datenbankabfrage und unabhängig davon, ob das Konto existiert — sonst verriete die
+Sperrmeldung, welche Adressen registriert sind.
+
+### A4 · Keine automatisierten Tests — ✅ Grundstock steht (23.08.2026)
 
 Null Testdateien bei 98 Quelldateien. Jede Änderung wird von Hand nachgeprüft oder
 gar nicht. Bei einem System, das Bestandsdaten führt, ist das auf Dauer nicht haltbar.
@@ -89,6 +112,24 @@ gar nicht. Bei einem System, das Bestandsdaten führt, ist das auf Dauer nicht h
 **Nötig:** Kein Vollausbau — aber die rechnenden und buchenden Teile gehören
 abgesichert: Fälligkeitsberechnung, Konflikterkennung, Case-Umbuchung, CSV-Import,
 Rechteprüfung.
+
+**Umgesetzt:** Vitest mit 63 Tests in 7 Dateien. Abgedeckt: Anmeldebremse,
+CSV-Erzeugung, Wartungsfristen und Prüfergebnisse, Statusketten und Gruppierung,
+PDF-Zeichensatz und Seitenumbruch, Zerlegung der Migrations-SQL. Die
+Konflikterkennung steckt in einer Prisma-Abfrage und wird deshalb als
+Integrationstest gegen eine echte SQLite-Datei geprüft, nicht mit Attrappen.
+`npm test`, in der CI bei jedem Push und als Sperre vor jedem Release.
+
+**Dabei gefunden — ein echter Rechenfehler:** `addMonths` ließ den 30. November
+plus drei Monate auf den 2. März überlaufen statt auf den 28. Februar
+(JavaScripts `setMonth` normalisiert den 30. Februar stillschweigend weiter). Jede
+Prüffrist, die auf einen Monatsletzten fällt, wanderte damit bei jedem Durchlauf
+nach hinten — bei einer DGUV-V3-Frist keine Kleinigkeit. Behoben und mit
+Grenzfällen inklusive Schaltjahr abgesichert.
+
+**Offen:** Case-Umbuchung und CSV-Import sind noch nicht abgedeckt. Beide stecken
+in Server-Aktionen, die `requireUser` aufrufen und deshalb einen Request-Kontext
+brauchen; das ist eigene Vorarbeit wert.
 
 ### A5 · Keine Sicherung im laufenden Betrieb
 
@@ -121,12 +162,21 @@ Chip-Reihe abgeschnitten („Gesperr…"), der Suchtext ebenfalls („…Kate").
 Trefferanzahl. Und die Zeilen sollten zeigen, was im Einsatz zählt: in welchem Case,
 auf welchem Event, Prüfung fällig — statt nur des Status.
 
-### B3 · Die untere Leiste passt nicht zur Arbeit
+### B3 · Die untere Leiste passt nicht zur Arbeit — verschärft (23.08.2026)
 
 „Events" hat einen festen Platz, obwohl man es selten öffnet; „Cases", „Standorte",
 „Wartung", „Etiketten" liegen alle unter „Mehr" — einer flachen Liste aus acht
 Einträgen ohne Ordnung. Zusätzlich überlappt das Benutzer-Kürzel („N") die
 Beschriftung „Start".
+
+**Nachgemessen (23.08.2026), schlimmer als beschrieben:** Auch die *Desktop*-Leiste
+reicht nicht. Bei 1100 px Fensterbreite braucht die Navigation 903 px in einem
+758 px breiten Bereich; sie wird abgeschnitten, ohne zu scrollen oder umzubrechen.
+„Feedback" ist dadurch für einen Admin schlicht **unerreichbar**, „Einstellungen"
+halb verdeckt. Das ist kein Schönheitsfehler, sondern ein nicht bedienbarer
+Menüpunkt — und es trifft jeden Laptop mit kleinem Bildschirm. Der schnelle
+Zwischenschritt wäre `flex-wrap` oder ein waagerechter Scrollbereich; die
+eigentliche Lösung ist die Neuordnung, die dieser Befund ohnehin verlangt.
 
 ### B4 · Der Feedback-Knopf steht überall im Weg
 
@@ -198,16 +248,23 @@ Wartungsauslöser.
 Fünf Stufen. Die Reihenfolge ist bewusst: erst darf man der App vertrauen, dann wird
 sie einfach, dann wird sie stärker.
 
-### Stufe 1 — Vertrauen (Voraussetzung für alles)
+### Stufe 1 — Vertrauen (Voraussetzung für alles) — abgeschlossen 23.08.2026
 
-| Was | Warum | Aufwand |
+| Was | Warum | Stand |
 |---|---|---|
-| Passwort zurücksetzen und ändern (A1) | Ohne das ist die App nicht auslieferbar | ~1 Tag |
-| Letzten Admin schützen (A1) | Sonst sperrt man sich selbst aus | ~2 Std. |
-| Anmeldung gegen Durchprobieren schützen (A3) | Sobald sie öffentlich steht | ~0,5 Tage |
-| Export: Inventar als CSV und PDF (A2) | Versicherung, Steuer, Übergabe | ~1 Tag |
-| Packliste als PDF (A2) | Nimmt man ohnehin ausgedruckt mit | ~0,5 Tage |
-| Tests für die rechnenden Teile (A4) | Fälligkeit, Konflikte, Umbuchung, Import | ~2 Tage |
+| Passwort zurücksetzen und ändern (A1) | Ohne das ist die App nicht auslieferbar | ✅ erledigt |
+| Letzten Admin schützen (A1) | Sonst sperrt man sich selbst aus | ✅ war bereits vorhanden, jetzt durch Tests belegt |
+| Anmeldung gegen Durchprobieren schützen (A3) | Sobald sie öffentlich steht | ✅ erledigt |
+| Export: Inventar als CSV und PDF (A2) | Versicherung, Steuer, Übergabe | ✅ erledigt |
+| Packliste als PDF (A2) | Nimmt man ohnehin ausgedruckt mit | ✅ erledigt |
+| Tests für die rechnenden Teile (A4) | Fälligkeit, Konflikte, Umbuchung, Import | ✅ Grundstock: 63 Tests, CI-Sperre |
+
+Nicht in dieser Stufe erledigt und bewusst offen geblieben:
+
+- **Prüfnachweise als PDF-Sammlung** (Teil von A2) — gehört zu den Prüfprotokollen.
+- **Tests für Case-Umbuchung und CSV-Import** (Teil von A4) — beide stecken in
+  Server-Aktionen mit `requireUser`, brauchen also einen Request-Kontext im Test.
+- **A5 (Sicherung im laufenden Betrieb)** war nie Teil von Stufe 1.
 
 ### Stufe 2 — Der Einsatzmodus (die eigentliche Antwort auf „einfach")
 

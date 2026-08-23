@@ -8,6 +8,9 @@
     "build:standalone": "prisma generate && next build && node scripts/prepare-standalone.mjs",
     "start": "node .next/standalone/server.js",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run lint && tsc --noEmit && vitest run",
     "desktop:dev": "npm run build:standalone && electron .",
     "desktop:pack": "npm run build:standalone && electron-builder --dir",
     "desktop:dist": "npm run build:standalone && electron-builder"
@@ -35,7 +38,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   },
   "description": "Inventar- und Einsatz-Tracking für Veranstaltungstechnik mit QR-Codes",
   "main": "electron/main.js",

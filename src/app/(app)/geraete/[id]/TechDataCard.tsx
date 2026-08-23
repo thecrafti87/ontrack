@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { saveFieldValuesAction, type ActionState } from "../actions";
 
@@ -37,9 +37,14 @@ export function TechDataCard({
     undefined
   );
 
-  useEffect(() => {
-    if (state?.success) setEditing(false);
-  }, [state]);
+  // Nach erfolgreichem Speichern zurück in die Anzeige. Bewusst während des
+  // Renderns statt in einem Effect: so entfällt der zusätzliche Durchlauf, in
+  // dem das Formular noch offen wäre, obwohl es schon gespeichert ist.
+  const [letztesToken, setLetztesToken] = useState<number | undefined>(undefined);
+  if (state?.token !== letztesToken) {
+    setLetztesToken(state?.token);
+    if (state?.success && editing) setEditing(false);
+  }
 
   const hasAnything = displayGroups.length > 0;
 

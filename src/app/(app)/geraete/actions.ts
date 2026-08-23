@@ -754,7 +754,7 @@ export async function saveFieldValuesAction(
   if (!device) return { error: "Gerät nicht gefunden." };
 
   const activeCodes = await resolveActiveFieldCodes(device);
-  if (activeCodes.length === 0) return { success: true };
+  if (activeCodes.length === 0) return { success: true, token: Date.now() };
 
   const existingValues = await prisma.deviceFieldValue.findMany({ where: { deviceId } });
   const existingMap = new Map(existingValues.map((v) => [v.fieldCode, v.value]));
@@ -793,5 +793,5 @@ export async function saveFieldValuesAction(
   }
 
   revalidatePath(`/geraete/${deviceId}`);
-  return { success: true };
+  return { success: true, token: Date.now() };
 }

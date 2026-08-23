@@ -52,6 +52,15 @@ jobs:
       # Der Build läuft ohne .env. Die Datenbank liegt bewusst außerhalb des
       # Projektordners: Next.js' Datei-Tracing folgt dem Datenbankpfad und
       # würde sie sonst in den Standalone-Output kopieren.
+      # Die Tests laufen gegen eine echte SQLite-Datei und brauchen dafür den
+      # erzeugten Prisma-Client. Nicht auf das Postinstall-Skript verlassen.
+      - name: Prisma-Client erzeugen
+        run: npx prisma generate
+
+      # Ein Release darf nicht ausgeliefert werden, wenn die Tests rot sind.
+      - name: Tests
+        run: npm test
+
       - name: Build-Datenbank anlegen
         run: npx prisma migrate deploy
         env:
