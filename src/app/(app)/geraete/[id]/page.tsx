@@ -10,6 +10,8 @@ import {
   type EventItemStatus,
   ISSUE_STATUS,
   type IssueStatus,
+  MAINTENANCE_RESULT,
+  type MaintenanceResult,
   NOT_PLANNABLE,
   formatDate,
   formatDateRange,
@@ -24,8 +26,9 @@ import { ScanCapture } from "./ScanCapture";
 import { ReportIssueForm, IssueStatusForm } from "./issueForms";
 import {
   AddMaintenancePlanForm,
-  CompleteMaintenanceForm,
+  RecordMaintenanceForm,
   DeleteMaintenancePlanForm,
+  DeleteMaintenanceRecordForm,
 } from "../maintenanceForms";
 import { AdvanceStatusButton } from "../../events/itemActions";
 import { resolveActiveFieldCodes } from "../actions";
@@ -76,7 +79,14 @@ export default async function DeviceDetailPage({
         include: { reporter: true, photos: true },
         orderBy: { createdAt: "desc" },
       },
-      maintenances: true,
+      maintenances: {
+        include: {
+          records: {
+            include: { recordedBy: { select: { name: true } }, documents: true },
+            orderBy: { performedAt: "desc" },
+          },
+        },
+      },
       eventItems: {
         include: { event: true },
         orderBy: { event: { startDate: "asc" } },
@@ -451,9 +461,46 @@ export default async function DeviceDetailPage({
                 </p>
                 {plan.notes && <p className="text-sm text-muted whitespace-pre-wrap">{plan.notes}</p>}
 
+                {plan.records.length > 0 && (
+                  <ol className="flex flex-col gap-2 border-t border-line/60 pt-2">
+                    {plan.records.map((rec) => {
+                      const res = MAINTENANCE_RESULT[rec.result as MaintenanceResult];
+                      return (
+                        <li key={rec.id} className="text-sm flex flex-col gap-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`badge shrink-0 ${res?.badge ?? ""}`}>
+                              {res?.label ?? rec.result}
+                            </span>
+                            <span>{formatDate(rec.performedAt)}</span>
+                            {rec.testerName && <span className="text-muted">· {rec.testerName}</span>}
+                          </div>
+                          {rec.notes && (
+                            <p className="text-muted whitespace-pre-wrap">{rec.notes}</p>
+                          )}
+                          <div className="flex items-center gap-3 flex-wrap text-xs text-muted">
+                            {rec.documents.map((doc) => (
+                              <a
+                                key={doc.id}
+                                href={`/api/files/${doc.filename}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-accent underline"
+                              >
+                                Protokoll öffnen
+                              </a>
+                            ))}
+                            <span>erfasst von {rec.recordedBy.name}</span>
+                            {user.role === "ADMIN" && <DeleteMaintenanceRecordForm recordId={rec.id} />}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+
                 {editable && (
-                  <div className="flex flex-wrap gap-2">
-                    <CompleteMaintenanceForm planId={plan.id} />
+                  <div className="flex flex-wrap items-start gap-2">
+                    <RecordMaintenanceForm planId={plan.id} />
                     {user.role === "ADMIN" && <DeleteMaintenancePlanForm planId={plan.id} />}
                   </div>
                 )}

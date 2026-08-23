@@ -6,10 +6,25 @@ import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { saveUpload } from "@/lib/uploads";
-import { DEVICE_STATUS, type DeviceStatus, ISSUE_STATUS, type IssueStatus } from "@/lib/constants";
+import {
+  DEVICE_STATUS,
+  type DeviceStatus,
+  ISSUE_STATUS,
+  type IssueStatus,
+  MAINTENANCE_RESULT,
+  isMaintenanceResult,
+} from "@/lib/constants";
 import { fieldByCode, parseFieldCodes } from "@/lib/fieldCatalog";
 
-export type ActionState = { error?: string; success?: boolean } | undefined;
+export type ActionState =
+  | {
+      error?: string;
+      success?: boolean;
+      /** Wechselt bei jedem Erfolg. Formulare hängen ihren React-Schlüssel daran
+       *  und montieren sich neu, statt ihren Zustand in einem Effect zurückzusetzen. */
+      token?: number;
+    }
+  | undefined;
 
 function parseOptionalFloat(value: FormDataEntryValue | null): number | null {
   if (value == null || value === "") return null;
@@ -549,7 +564,34 @@ export async function createMaintenancePlanAction(
   return undefined;
 }
 
-export async function completeMaintenanceAction(
+/**
+ * Führt den Fälligkeitsstichtag eines Plans anhand seiner Prüfungen nach.
+ *
+ * Maßgeblich ist die jüngste Prüfung, die das Intervall zurücksetzt — eine
+ * nicht bestandene Prüfung tut das nicht. Gibt es (noch) keine solche Prüfung,
+ * bleibt ein von Hand eingetragener Stichtag unangetastet: er ist dann die
+ * einzige Angabe darüber, wann zuletzt geprüft wurde.
+ */
+async function syncPlanLastDone(planId: string) {
+  const resetting = Object.entries(MAINTENANCE_RESULT)
+    .filter(([, cfg]) => cfg.resetsInterval)
+    .map(([key]) => key);
+
+  const newest = await prisma.maintenanceRecord.findFirst({
+    where: { planId, result: { in: resetting } },
+    orderBy: { performedAt: "desc" },
+    select: { performedAt: true },
+  });
+
+  if (!newest) return;
+  await prisma.maintenancePlan.update({
+    where: { id: planId },
+    data: { lastDoneAt: newest.performedAt },
+  });
+}
+
+/** Erfasst eine durchgeführte Prüfung samt Ergebnis, Prüfer und Protokoll. */
+export async function recordMaintenanceAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
@@ -557,21 +599,104 @@ export async function completeMaintenanceAction(
   if (!canEdit(user)) return { error: "Keine Berechtigung." };
 
   const planId = String(formData.get("planId") ?? "");
+  const result = String(formData.get("result") ?? "");
+  const performedAt = parseOptionalDate(formData.get("performedAt")) ?? new Date();
+  const testerName = String(formData.get("testerName") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const blockDevice = formData.get("blockDevice") === "on";
+  const file = formData.get("file");
+
+  if (!isMaintenanceResult(result)) return { error: "Bitte ein Ergebnis auswählen." };
+  if (performedAt.getTime() > Date.now()) {
+    return { error: "Das Prüfdatum kann nicht in der Zukunft liegen." };
+  }
+
   const plan = await prisma.maintenancePlan.findUnique({ where: { id: planId } });
   if (!plan) return { error: "Wartungsplan nicht gefunden." };
 
-  await prisma.maintenancePlan.update({
-    where: { id: planId },
-    data: { lastDoneAt: new Date() },
+  // Das Protokoll zuerst speichern: schlägt der Upload fehl, entsteht kein
+  // Prüfeintrag, der einen Nachweis behauptet, den es nicht gibt.
+  let filename: string | null = null;
+  if (file instanceof File && file.size > 0) {
+    try {
+      filename = await saveUpload(file);
+    } catch {
+      return { error: "Dieser Dateityp wird nicht unterstützt (erlaubt: PDF und Bilder)." };
+    }
+  }
+
+  const record = await prisma.maintenanceRecord.create({
+    data: {
+      planId,
+      performedAt,
+      result,
+      testerName,
+      notes,
+      recordedById: user.id,
+      ...(filename
+        ? { documents: { create: { filename, caption: "Prüfprotokoll", uploadedById: user.id } } }
+        : {}),
+    },
   });
+
+  await syncPlanLastDone(planId);
+
+  // Sperren nur auf ausdrücklichen Wunsch — der Haken ist bei "nicht bestanden"
+  // vorbelegt, gesetzt wird der Status aber nie von allein.
+  if (blockDevice) {
+    const device = await prisma.device.findUnique({ where: { id: plan.deviceId } });
+    if (device && device.status !== "GESPERRT") {
+      await prisma.device.update({ where: { id: plan.deviceId }, data: { status: "GESPERRT" } });
+      await logActivity({
+        userId: user.id,
+        action: `Status geändert: ${DEVICE_STATUS[device.status as DeviceStatus]?.label ?? device.status} → Gesperrt`,
+        details: `Prüfung nicht bestanden: ${plan.title}`,
+        deviceId: plan.deviceId,
+      });
+    }
+  }
 
   await logActivity({
     userId: user.id,
-    action: `Wartung durchgeführt: ${plan.title}`,
+    action: `Prüfung erfasst: ${plan.title} — ${MAINTENANCE_RESULT[result].label}`,
+    details:
+      [testerName && `Prüfer: ${testerName}`, filename && "Protokoll hinterlegt"]
+        .filter(Boolean)
+        .join(" · ") || undefined,
     deviceId: plan.deviceId,
   });
 
   revalidatePath(`/geraete/${plan.deviceId}`);
+  revalidatePath("/wartung");
+  return { success: true, token: Date.now() };
+}
+
+/** Löscht einen Prüfeintrag. Nur Admin — es ist ein Nachweisdokument. */
+export async function deleteMaintenanceRecordAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") return { error: "Nur Admins dürfen Prüfnachweise löschen." };
+
+  const recordId = String(formData.get("recordId") ?? "");
+  const record = await prisma.maintenanceRecord.findUnique({
+    where: { id: recordId },
+    include: { plan: true },
+  });
+  if (!record) return { error: "Prüfeintrag nicht gefunden." };
+
+  await prisma.maintenanceRecord.delete({ where: { id: recordId } });
+  await syncPlanLastDone(record.planId);
+
+  await logActivity({
+    userId: user.id,
+    action: `Prüfnachweis gelöscht: ${record.plan.title}`,
+    details: `Prüfung vom ${record.performedAt.toLocaleDateString("de-DE")}`,
+    deviceId: record.plan.deviceId,
+  });
+
+  revalidatePath(`/geraete/${record.plan.deviceId}`);
   revalidatePath("/wartung");
   return undefined;
 }

@@ -28,6 +28,37 @@ export const ISSUE_STATUS = {
 } as const;
 export type IssueStatus = keyof typeof ISSUE_STATUS;
 
+/**
+ * Ergebnis einer durchgeführten Prüfung.
+ *
+ * `resetsInterval` steuert, ob die Prüfung den Fälligkeitsstichtag weiterschiebt.
+ * Eine nicht bestandene Prüfung tut das bewusst NICHT: das Gerät bleibt fällig,
+ * bis es die Prüfung besteht — sonst hätte ein Durchfallen zur Folge, dass für
+ * ein Jahr Ruhe ist.
+ */
+export const MAINTENANCE_RESULT = {
+  BESTANDEN: {
+    label: "Bestanden",
+    badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    resetsInterval: true,
+  },
+  MAENGEL: {
+    label: "Bestanden, mit Mängeln",
+    badge: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    resetsInterval: true,
+  },
+  DURCHGEFALLEN: {
+    label: "Nicht bestanden",
+    badge: "bg-red-500/15 text-red-400 border-red-500/30",
+    resetsInterval: false,
+  },
+} as const;
+export type MaintenanceResult = keyof typeof MAINTENANCE_RESULT;
+
+export function isMaintenanceResult(value: string): value is MaintenanceResult {
+  return value in MAINTENANCE_RESULT;
+}
+
 export const ROLES = {
   ADMIN: { label: "Admin" },
   TECHNIKER: { label: "Techniker" },

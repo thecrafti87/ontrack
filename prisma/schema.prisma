@@ -18,11 +18,12 @@ model User {
   approved     Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  sessions  Session[]
-  logs      ActivityLog[]
-  issues    Issue[]
-  photos    Photo[]
-  feedbacks Feedback[]
+  sessions           Session[]
+  logs               ActivityLog[]
+  issues             Issue[]
+  photos             Photo[]
+  feedbacks          Feedback[]
+  maintenanceRecords MaintenanceRecord[]
 }
 
 model Session {
@@ -50,8 +51,8 @@ model Location {
 // ── Geräte & Cases ──────────────────────────────────────────────────
 
 model Device {
-  id            String       @id @default(cuid())
-  inventoryNo   String       @unique
+  id            String    @id @default(cuid())
+  inventoryNo   String    @unique
   name          String
   category      String?
   serialNo      String?
@@ -60,9 +61,9 @@ model Device {
   supplier      String?
   weightKg      Float?
   notes         String?
-  status        String       @default("EINSATZBEREIT") // EINSATZBEREIT | DEFEKT_GEMELDET | GESPERRT | IN_REPARATUR | AUSGEMUSTERT
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  status        String    @default("EINSATZBEREIT") // EINSATZBEREIT | DEFEKT_GEMELDET | GESPERRT | IN_REPARATUR | AUSGEMUSTERT
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   locationId String?
   location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
@@ -117,11 +118,11 @@ model Event {
 }
 
 model EventItem {
-  id       String          @id @default(cuid())
+  id       String  @id @default(cuid())
   eventId  String
   deviceId String
   position String? // Einsatzposition als Text, z. B. "Bühne links"
-  status   String          @default("GEPLANT") // GEPLANT | GEPACKT | AUFGEBAUT | ABGEBAUT | ZURUECK
+  status   String  @default("GEPLANT") // GEPLANT | GEPACKT | AUFGEBAUT | ABGEBAUT | ZURUECK
 
   // Position auf dem Veranstaltungsplan (relativ 0..1, per Drag & Drop)
   planX Float?
@@ -140,21 +141,46 @@ model MaintenancePlan {
   deviceId       String
   title          String // z. B. "DGUV V3-Prüfung"
   intervalMonths Int
+  // Stichtag für die Fälligkeitsberechnung. Wird aus den Prüfungen unten
+  // abgeleitet: eine durchgefallene Prüfung schiebt ihn NICHT weiter, das
+  // Gerät bleibt fällig, bis es die Prüfung besteht.
   lastDoneAt     DateTime?
   notes          String?
 
-  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  device  Device              @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  records MaintenanceRecord[]
+}
+
+/// Eine einzelne durchgeführte Prüfung — der eigentliche Nachweis.
+/// Getrennt vom Plan, damit die Historie vollständig erhalten bleibt:
+/// Wer hat wann mit welchem Ergebnis geprüft, und wo liegt das Protokoll.
+model MaintenanceRecord {
+  id          String   @id @default(cuid())
+  planId      String
+  performedAt DateTime
+  result      String // BESTANDEN | MAENGEL | DURCHGEFALLEN
+  testerName  String? // Prüfer, oft eine externe Person oder Firma
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  recordedById String // wer den Eintrag in OnTrack erfasst hat
+
+  plan       MaintenancePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  recordedBy User            @relation(fields: [recordedById], references: [id])
+  documents  Photo[]
+
+  @@index([planId, performedAt])
 }
 
 // ── Fehlermeldungen (Defekt-Workflow) ───────────────────────────────
 
 model Issue {
-  id          String      @id @default(cuid())
+  id          String    @id @default(cuid())
   deviceId    String
   reporterId  String
   description String
-  status      String      @default("OFFEN") // OFFEN | IN_REPARATUR | ERLEDIGT
-  createdAt   DateTime    @default(now())
+  status      String    @default("OFFEN") // OFFEN | IN_REPARATUR | ERLEDIGT
+  createdAt   DateTime  @default(now())
   resolvedAt  DateTime?
 
   device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
@@ -171,12 +197,14 @@ model Photo {
   createdAt    DateTime @default(now())
   uploadedById String
 
-  deviceId String?
-  issueId  String?
+  deviceId            String?
+  issueId             String?
+  maintenanceRecordId String?
 
-  device     Device? @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  issue      Issue?  @relation(fields: [issueId], references: [id], onDelete: Cascade)
-  uploadedBy User    @relation(fields: [uploadedById], references: [id])
+  device            Device?            @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  issue             Issue?             @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  maintenanceRecord MaintenanceRecord? @relation(fields: [maintenanceRecordId], references: [id], onDelete: Cascade)
+  uploadedBy        User               @relation(fields: [uploadedById], references: [id])
 }
 
 // ── Historie ────────────────────────────────────────────────────────
@@ -207,14 +235,18 @@ model Setting {
 
 // ── Technische Zusatzfelder ──────────────────────────────────────────
 
-/** Pro Gerätekategorie festgelegte Auswahl aus dem Feldkatalog (JSON-Array von Codes). */
+/**
+ * Pro Gerätekategorie festgelegte Auswahl aus dem Feldkatalog (JSON-Array von Codes).
+ */
 model CategoryFieldConfig {
   id         String @id @default(cuid())
   category   String @unique
   fieldCodes String // JSON-Array von Feld-Codes aus src/lib/fieldCatalog.ts
 }
 
-/** Ein Freitext-Wert für ein Zusatzfeld an einem konkreten Gerät. */
+/**
+ * Ein Freitext-Wert für ein Zusatzfeld an einem konkreten Gerät.
+ */
 model DeviceFieldValue {
   id        String @id @default(cuid())
   deviceId  String
@@ -235,20 +267,20 @@ model DeviceFieldValue {
  * gewandert ist statt an die ursprünglich geplante Position.
  */
 model RigFixture {
-  id        String   @id @default(cuid())
-  eventId   String
-  uuid      String
-  fixtureId String?
-  name      String
-  gdtfSpec  String?
-  gdtfMode  String?
-  layerName String?
-  className String?
+  id           String  @id @default(cuid())
+  eventId      String
+  uuid         String
+  fixtureId    String?
+  name         String
+  gdtfSpec     String?
+  gdtfMode     String?
+  layerName    String?
+  className    String?
   dmxAddresses String?
-  posX      Float?   // Meter (SOLL-Position aus der MVR)
-  posY      Float?
-  posZ      Float?
-  deviceId  String?
+  posX         Float? // Meter (SOLL-Position aus der MVR)
+  posY         Float?
+  posZ         Float?
+  deviceId     String?
 
   installStatus  String  @default("GEPLANT") // GEPLANT | MONTIERT | ABWEICHEND
   actualPosition String? // Freitext: tatsächliche Montageposition, nur bei ABWEICHEND
@@ -263,7 +295,9 @@ model RigFixture {
 
 // ── Feedback (Kundentest) ────────────────────────────────────────────
 
-/** Freitext-Änderungswunsch, den ein Benutzer direkt von einer Seite aus meldet. */
+/**
+ * Freitext-Änderungswunsch, den ein Benutzer direkt von einer Seite aus meldet.
+ */
 model Feedback {
   id         String    @id @default(cuid())
   userId     String

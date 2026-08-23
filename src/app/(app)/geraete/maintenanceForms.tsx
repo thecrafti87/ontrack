@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   createMaintenancePlanAction,
-  completeMaintenanceAction,
+  recordMaintenanceAction,
   deleteMaintenancePlanAction,
+  deleteMaintenanceRecordAction,
   type ActionState,
 } from "./actions";
+import { MAINTENANCE_RESULT, type MaintenanceResult } from "@/lib/constants";
 
 const TITLE_SUGGESTIONS = ["DGUV V3-Prüfung", "Sichtprüfung", "Reinigung"];
 
@@ -84,17 +86,204 @@ export function AddMaintenancePlanForm({ deviceId }: { deviceId: string }) {
   );
 }
 
-export function CompleteMaintenanceForm({ planId }: { planId: string }) {
+/**
+ * Erfassung einer durchgeführten Prüfung.
+ *
+ * Bewusst ein Formular statt eines Ein-Klick-Knopfes: Der Sinn der Sache ist
+ * der Nachweis, und der besteht aus Datum, Ergebnis, Prüfer und Protokoll.
+ * Für den einfachen Fall bleibt es trotzdem schnell — Datum und Ergebnis sind
+ * vorbelegt, es genügt ein Klick auf "Prüfung speichern".
+ */
+export function RecordMaintenanceForm({ planId }: { planId: string }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    completeMaintenanceAction,
+    recordMaintenanceAction,
+    undefined
+  );
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+
+  // Nach dem Speichern zuklappen — reine DOM-Anweisung, kein Zustandswechsel.
+  useEffect(() => {
+    if (state?.success && detailsRef.current) detailsRef.current.open = false;
+  }, [state]);
+
+  return (
+    <details ref={detailsRef}>
+      <summary className="btn-secondary inline-block cursor-pointer list-none">
+        Prüfung erfassen
+      </summary>
+      {/* Der Schlüssel wechselt bei jedem Erfolg: die Felder werden frisch
+          montiert, statt ihren Zustand nachträglich zurückzusetzen. */}
+      <RecordMaintenanceFields
+        key={state?.token ?? 0}
+        planId={planId}
+        formAction={formAction}
+        pending={pending}
+        error={state?.error}
+      />
+    </details>
+  );
+}
+
+function RecordMaintenanceFields({
+  planId,
+  formAction,
+  pending,
+  error,
+}: {
+  planId: string;
+  formAction: (formData: FormData) => void;
+  pending: boolean;
+  error?: string;
+}) {
+  const [result, setResult] = useState<MaintenanceResult>("BESTANDEN");
+  const [blockDevice, setBlockDevice] = useState(false);
+  const dateRef = useRef<HTMLInputElement>(null);
+
+  // Erst nach dem Mounten setzen — ein serverseitig gerendertes "heute" würde
+  // beim Hydrieren abweichen.
+  useEffect(() => {
+    if (dateRef.current) dateRef.current.value = new Date().toISOString().slice(0, 10);
+  }, []);
+
+  const failed = result === "DURCHGEFALLEN";
+
+  return (
+    <>
+      <form action={formAction} className="mt-3 flex flex-col gap-3">
+        <input type="hidden" name="planId" value={planId} />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="label" htmlFor={`rec-date-${planId}`}>
+              Prüfdatum
+            </label>
+            <input
+              ref={dateRef}
+              id={`rec-date-${planId}`}
+              name="performedAt"
+              type="date"
+              className="input"
+              max={new Date().toISOString().slice(0, 10)}
+            />
+          </div>
+
+          <div>
+            <label className="label" htmlFor={`rec-result-${planId}`}>
+              Ergebnis
+            </label>
+            <select
+              id={`rec-result-${planId}`}
+              name="result"
+              className="input"
+              value={result}
+              onChange={(e) => {
+                const next = e.target.value as MaintenanceResult;
+                setResult(next);
+                // Vorbelegen, nicht erzwingen: bei "nicht bestanden" ist das
+                // Sperren fast immer richtig, entscheiden soll es der Mensch.
+                setBlockDevice(next === "DURCHGEFALLEN");
+              }}
+            >
+              {Object.entries(MAINTENANCE_RESULT).map(([key, cfg]) => (
+                <option key={key} value={key}>
+                  {cfg.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="label" htmlFor={`rec-tester-${planId}`}>
+              Prüfer <span className="text-muted font-normal">(Person oder Firma)</span>
+            </label>
+            <input
+              id={`rec-tester-${planId}`}
+              name="testerName"
+              className="input"
+              placeholder="z. B. Elektro Müller GmbH"
+            />
+          </div>
+
+          <div>
+            <label className="label" htmlFor={`rec-file-${planId}`}>
+              Protokoll <span className="text-muted font-normal">(PDF oder Foto)</span>
+            </label>
+            <input
+              id={`rec-file-${planId}`}
+              name="file"
+              type="file"
+              accept=".pdf,image/*"
+              className="input"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="label" htmlFor={`rec-notes-${planId}`}>
+              Bemerkung
+            </label>
+            <textarea
+              id={`rec-notes-${planId}`}
+              name="notes"
+              className="input min-h-16"
+              placeholder={failed ? "Welcher Mangel? Was ist zu tun?" : "Optional"}
+            />
+          </div>
+        </div>
+
+        {!MAINTENANCE_RESULT[result].resetsInterval && (
+          <p className="text-xs text-amber-400">
+            Eine nicht bestandene Prüfung setzt das Intervall nicht zurück — das Gerät
+            bleibt fällig, bis es die Prüfung besteht.
+          </p>
+        )}
+
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            name="blockDevice"
+            checked={blockDevice}
+            onChange={(e) => setBlockDevice(e.target.checked)}
+            className="size-4 accent-red-500"
+          />
+          Gerät sperren (nicht mehr für Veranstaltungen einplanbar)
+        </label>
+
+        {error && <p className="text-sm text-red-400">{error}</p>}
+
+        <button type="submit" disabled={pending} className="btn-primary md:self-start">
+          {pending ? "Wird gespeichert…" : "Prüfung speichern"}
+        </button>
+      </form>
+    </>
+  );
+}
+
+export function DeleteMaintenanceRecordForm({ recordId }: { recordId: string }) {
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(
+    deleteMaintenanceRecordAction,
     undefined
   );
 
   return (
-    <form action={formAction} className="inline-flex flex-col gap-1">
-      <input type="hidden" name="planId" value={planId} />
-      <button type="submit" disabled={pending} className="btn-secondary">
-        {pending ? "Wird erfasst…" : "Wartung durchgeführt"}
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        if (
+          !window.confirm(
+            "Prüfnachweis wirklich löschen? Er dient als Beleg gegenüber Versicherung und Aufsicht."
+          )
+        )
+          e.preventDefault();
+      }}
+      className="inline-flex flex-col"
+    >
+      <input type="hidden" name="recordId" value={recordId} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="text-xs text-muted hover:text-red-400 underline"
+      >
+        {pending ? "Wird gelöscht…" : "Nachweis löschen"}
       </button>
       {state?.error && <p className="text-xs text-red-400">{state.error}</p>}
     </form>
@@ -117,7 +306,7 @@ export function DeleteMaintenancePlanForm({ planId }: { planId: string }) {
     >
       <input type="hidden" name="planId" value={planId} />
       <button type="submit" disabled={pending} className="btn-danger">
-        {pending ? "Wird gelöscht…" : "Löschen"}
+        {pending ? "Wird gelöscht…" : "Plan löschen"}
       </button>
       {state?.error && <p className="text-xs text-red-400">{state.error}</p>}
     </form>

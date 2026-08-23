@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { formatDate } from "@/lib/constants";
 import { getMaintenanceDueDate, getMaintenanceUrgency, type MaintenanceUrgency } from "@/lib/maintenance";
-import { CompleteMaintenanceForm } from "../geraete/maintenanceForms";
+import { RecordMaintenanceForm } from "../geraete/maintenanceForms";
 
 export const metadata: Metadata = { title: "Wartung" };
 
@@ -54,7 +54,7 @@ function PlanGroupTable({ plans, editable }: { plans: PlanRow[]; editable: boole
                 <td className="px-4 py-3">{plan.dueDate ? formatDate(plan.dueDate) : "sofort fällig"}</td>
                 {editable && (
                   <td className="px-4 py-3">
-                    <CompleteMaintenanceForm planId={plan.id} />
+                    <RecordMaintenanceForm planId={plan.id} />
                   </td>
                 )}
               </tr>
@@ -75,7 +75,7 @@ function PlanGroupTable({ plans, editable }: { plans: PlanRow[]; editable: boole
             <p className="text-sm">
               {plan.dueDate ? `fällig am ${formatDate(plan.dueDate)}` : "sofort fällig"}
             </p>
-            {editable && <CompleteMaintenanceForm planId={plan.id} />}
+            {editable && <RecordMaintenanceForm planId={plan.id} />}
           </div>
         ))}
       </div>
