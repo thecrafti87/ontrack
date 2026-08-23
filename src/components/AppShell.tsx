@@ -239,7 +239,8 @@ export default function AppShell({ user, mission, children }: AppShellProps) {
             <NavGroup label="Verwaltung" items={VERWALTUNG_NAV} pathname={pathname} />
           )}
         </nav>
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
+          <FeedbackButton variant="icon" />
           <Link
             href="/konto"
             className="text-sm text-muted hover:text-foreground transition-colors"
@@ -277,7 +278,6 @@ export default function AppShell({ user, mission, children }: AppShellProps) {
 
       <main className="flex-1 pb-40 md:pb-20">{children}</main>
 
-      <FeedbackButton />
 
       {/* Mobile Bottom-Nav */}
       <nav

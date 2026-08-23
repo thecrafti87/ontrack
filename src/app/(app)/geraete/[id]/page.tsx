@@ -500,7 +500,10 @@ export default async function DeviceDetailPage({
 
                 {editable && (
                   <div className="flex flex-wrap items-start gap-2">
-                    <RecordMaintenanceForm planId={plan.id} />
+                    <RecordMaintenanceForm
+                      planId={plan.id}
+                      deviceIsBlocked={device.status === "GESPERRT"}
+                    />
                     {user.role === "ADMIN" && <DeleteMaintenancePlanForm planId={plan.id} />}
                   </div>
                 )}

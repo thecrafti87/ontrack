@@ -604,6 +604,7 @@ export async function recordMaintenanceAction(
   const testerName = String(formData.get("testerName") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const blockDevice = formData.get("blockDevice") === "on";
+  const unblockDevice = formData.get("unblockDevice") === "on";
   const file = formData.get("file");
 
   if (!isMaintenanceResult(result)) return { error: "Bitte ein Ergebnis auswählen." };
@@ -651,6 +652,28 @@ export async function recordMaintenanceAction(
         userId: user.id,
         action: `Status geändert: ${DEVICE_STATUS[device.status as DeviceStatus]?.label ?? device.status} → Gesperrt`,
         details: `Prüfung nicht bestanden: ${plan.title}`,
+        deviceId: plan.deviceId,
+      });
+    }
+  }
+
+  // Das Gegenstück: Nach bestandener Nachprüfung darf ein gesperrtes Gerät
+  // wieder freigegeben werden. Ohne das blieb die Sperre Handarbeit an
+  // anderer Stelle — und wurde dort erfahrungsgemäß vergessen.
+  //
+  // Nur aus GESPERRT heraus: "defekt gemeldet", "in Reparatur" oder
+  // "ausgemustert" haben eigene Gründe, die eine Prüfung nicht aufhebt.
+  if (unblockDevice && MAINTENANCE_RESULT[result].resetsInterval) {
+    const device = await prisma.device.findUnique({ where: { id: plan.deviceId } });
+    if (device && device.status === "GESPERRT") {
+      await prisma.device.update({
+        where: { id: plan.deviceId },
+        data: { status: "EINSATZBEREIT" },
+      });
+      await logActivity({
+        userId: user.id,
+        action: "Status geändert: Gesperrt → Einsatzbereit",
+        details: `Prüfung bestanden: ${plan.title}`,
         deviceId: plan.deviceId,
       });
     }

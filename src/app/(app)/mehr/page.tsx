@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import {
   BoxIcon,
   MapPinIcon,
@@ -72,6 +73,7 @@ export default async function MehrPage() {
         Konto
       </div>
       <NavRow href="/konto" icon={<PersonIcon />} label="Mein Konto" />
+      <FeedbackButton variant="row" />
 
       <form method="post" action="/logout" className="mt-4">
         <button type="submit" className="btn-danger w-full">

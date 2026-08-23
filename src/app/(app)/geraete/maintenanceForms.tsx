@@ -94,7 +94,14 @@ export function AddMaintenancePlanForm({ deviceId }: { deviceId: string }) {
  * Für den einfachen Fall bleibt es trotzdem schnell — Datum und Ergebnis sind
  * vorbelegt, es genügt ein Klick auf "Prüfung speichern".
  */
-export function RecordMaintenanceForm({ planId }: { planId: string }) {
+export function RecordMaintenanceForm({
+  planId,
+  deviceIsBlocked,
+}: {
+  planId: string;
+  /** Ist das Gerät gerade gesperrt? Dann kann eine bestandene Prüfung es freigeben. */
+  deviceIsBlocked: boolean;
+}) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     recordMaintenanceAction,
     undefined
@@ -116,6 +123,7 @@ export function RecordMaintenanceForm({ planId }: { planId: string }) {
       <RecordMaintenanceFields
         key={state?.token ?? 0}
         planId={planId}
+        deviceIsBlocked={deviceIsBlocked}
         formAction={formAction}
         pending={pending}
         error={state?.error}
@@ -126,17 +134,20 @@ export function RecordMaintenanceForm({ planId }: { planId: string }) {
 
 function RecordMaintenanceFields({
   planId,
+  deviceIsBlocked,
   formAction,
   pending,
   error,
 }: {
   planId: string;
+  deviceIsBlocked: boolean;
   formAction: (formData: FormData) => void;
   pending: boolean;
   error?: string;
 }) {
   const [result, setResult] = useState<MaintenanceResult>("BESTANDEN");
   const [blockDevice, setBlockDevice] = useState(false);
+  const [unblockDevice, setUnblockDevice] = useState(true);
   const dateRef = useRef<HTMLInputElement>(null);
 
   // Erst nach dem Mounten setzen — ein serverseitig gerendertes "heute" würde
@@ -237,16 +248,32 @@ function RecordMaintenanceFields({
           </p>
         )}
 
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input
-            type="checkbox"
-            name="blockDevice"
-            checked={blockDevice}
-            onChange={(e) => setBlockDevice(e.target.checked)}
-            className="size-4 accent-red-500"
-          />
-          Gerät sperren (nicht mehr für Veranstaltungen einplanbar)
-        </label>
+        {/* Sperren und Entsperren schließen sich aus: Ist das Gerät gesperrt
+            und die Prüfung bestanden, ist die Freigabe die naheliegende
+            Handlung — aber auch sie geschieht nie von allein. */}
+        {deviceIsBlocked && MAINTENANCE_RESULT[result].resetsInterval ? (
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              name="unblockDevice"
+              checked={unblockDevice}
+              onChange={(e) => setUnblockDevice(e.target.checked)}
+              className="size-4 accent-emerald-500"
+            />
+            Sperre aufheben (Gerät wieder einsatzbereit)
+          </label>
+        ) : (
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              name="blockDevice"
+              checked={blockDevice}
+              onChange={(e) => setBlockDevice(e.target.checked)}
+              className="size-4 accent-red-500"
+            />
+            Gerät sperren (nicht mehr für Veranstaltungen einplanbar)
+          </label>
+        )}
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 

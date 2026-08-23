@@ -7,10 +7,17 @@ import { createFeedbackAction } from "@/app/(app)/feedback/actions";
 const MAX_MESSAGE_LENGTH = 2000;
 
 /**
- * Schwebender Feedback-Button (alle eingeloggten Rollen, auch HELFER).
- * Auf Mobil oberhalb der Bottom-Nav positioniert, auf Desktop unten rechts.
+ * Feedback zur gerade geöffneten Seite (alle Rollen, auch Helfer).
+ *
+ * Vorher schwebte der Knopf auf jeder Seite über dem Inhalt, so auffällig
+ * wie der Scan-Knopf, und verdeckte an mehreren Stellen Text. Jetzt ist er
+ * ein unauffälliger Auslöser, den die Hülle dort platziert, wo er nicht
+ * stört: am Desktop in der Kopfleiste, auf dem Handy unter „Mehr".
+ *
+ * `variant` bestimmt nur das Aussehen des Auslösers — der Dialog ist
+ * derselbe, und er merkt sich weiterhin, von welcher Seite er geöffnet wurde.
  */
-export function FeedbackButton() {
+export function FeedbackButton({ variant = "icon" }: { variant?: "icon" | "row" }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -39,14 +46,42 @@ export function FeedbackButton() {
 
   return (
     <>
-      <button
-        type="button"
-        aria-label="Feedback zu dieser Seite geben"
-        onClick={() => setOpen(true)}
-        className="fixed z-40 right-4 bottom-24 md:right-6 md:bottom-6 flex items-center justify-center size-14 rounded-full bg-accent text-accent-fg shadow-lg shadow-black/40 text-2xl"
-      >
-        💬
-      </button>
+      {variant === "icon" ? (
+        <button
+          type="button"
+          aria-label="Feedback zu dieser Seite geben"
+          title="Feedback zu dieser Seite"
+          onClick={() => setOpen(true)}
+          className="flex items-center justify-center size-9 rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
+        >
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path
+              d="M17 12a2 2 0 0 1-2 2H7l-4 3V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7Z"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="card flex items-center gap-4 min-h-16 hover:bg-surface-2 transition-colors w-full text-left"
+        >
+          <span className="text-muted">
+            <svg width="22" height="22" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M17 12a2 2 0 0 1-2 2H7l-4 3V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7Z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <span className="font-medium text-lg">Feedback geben</span>
+        </button>
+      )}
 
       {open && (
         <div

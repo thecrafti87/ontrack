@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
+import { extractInventoryNo } from "@/lib/scanCode";
 
 export type ActionState = { error?: string; success?: string } | undefined;
 
@@ -248,19 +249,6 @@ export type AssignBatchResult = {
   detail?: string;
 };
 
-/** Aus einem gescannten Text (URL oder Rohtext) die Inventarnummer extrahieren. */
-function extractInventoryNoFromCode(code: string): string {
-  try {
-    const url = new URL(code);
-    if (url.pathname.startsWith("/d/")) {
-      return decodeURIComponent(url.pathname.slice("/d/".length));
-    }
-  } catch {
-    // kein gültiges URL-Format — Rohtext wird als Inventarnummer verwendet
-  }
-  return code.trim();
-}
-
 /**
  * Prüft einen gescannten/eingegebenen Code READ-ONLY gegen den Ziel-Case.
  * Schreibt nichts — dient dem Aufbau der client-seitigen Sammelliste.
@@ -269,7 +257,7 @@ export async function scanCheckAction(caseId: string, code: string): Promise<Sca
   const user = await requireUser();
   if (!canEdit(user)) return { kind: "error", message: "Keine Berechtigung." };
 
-  const inventoryNo = extractInventoryNoFromCode(code);
+  const inventoryNo = extractInventoryNo(code);
   if (!inventoryNo) return { kind: "error", message: "Leerer Code." };
 
   const targetCase = await prisma.case.findUnique({ where: { id: caseId } });

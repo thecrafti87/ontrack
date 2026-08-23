@@ -16,7 +16,7 @@ type PlanRow = {
   notes: string | null;
   dueDate: Date | null;
   urgency: MaintenanceUrgency;
-  device: { id: string; name: string; inventoryNo: string };
+  device: { id: string; name: string; inventoryNo: string; status: string };
 };
 
 function byDueDateAsc(a: PlanRow, b: PlanRow): number {
@@ -54,7 +54,10 @@ function PlanGroupTable({ plans, editable }: { plans: PlanRow[]; editable: boole
                 <td className="px-4 py-3">{plan.dueDate ? formatDate(plan.dueDate) : "sofort fällig"}</td>
                 {editable && (
                   <td className="px-4 py-3">
-                    <RecordMaintenanceForm planId={plan.id} />
+                    <RecordMaintenanceForm
+                      planId={plan.id}
+                      deviceIsBlocked={plan.device.status === "GESPERRT"}
+                    />
                   </td>
                 )}
               </tr>
@@ -75,7 +78,10 @@ function PlanGroupTable({ plans, editable }: { plans: PlanRow[]; editable: boole
             <p className="text-sm">
               {plan.dueDate ? `fällig am ${formatDate(plan.dueDate)}` : "sofort fällig"}
             </p>
-            {editable && <RecordMaintenanceForm planId={plan.id} />}
+            {editable && <RecordMaintenanceForm
+                      planId={plan.id}
+                      deviceIsBlocked={plan.device.status === "GESPERRT"}
+                    />}
           </div>
         ))}
       </div>
@@ -88,7 +94,7 @@ export default async function WartungPage() {
   const editable = canEdit(user);
 
   const plans = await prisma.maintenancePlan.findMany({
-    include: { device: { select: { id: true, name: true, inventoryNo: true } } },
+    include: { device: { select: { id: true, name: true, inventoryNo: true, status: true } } },
   });
 
   const rows: PlanRow[] = plans.map((plan) => {
