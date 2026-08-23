@@ -19,6 +19,7 @@ type CameraState =
   | { phase: "running" }
   | { phase: "black"; detail: string } // Stream läuft, aber es kommt kein Bild an
   | { phase: "hang" } // Kamera-Anfrage wird von iOS weder beantwortet noch abgelehnt
+  | { phase: "insecure"; host: string } // ohne HTTPS gibt kein Browser die Kamera frei
   | { phase: "error"; detail: string };
 
 /**
@@ -49,8 +50,16 @@ export default function QrScanner({ onCode, className }: QrScannerProps) {
       if (!video) return;
       setState({ phase: "starting" });
       try {
+        // Ohne sicheren Kontext (HTTPS oder localhost) gibt kein Browser die
+        // Kamera frei — weder iOS noch Android. Das vorher zu erkennen ist
+        // wichtig, weil die Ursache sonst als Berechtigungsproblem erscheint
+        // und man am falschen Ende sucht.
+        if (!window.isSecureContext) {
+          setState({ phase: "insecure", host: window.location.host });
+          return;
+        }
         if (!navigator.mediaDevices?.getUserMedia) {
-          setState({ phase: "error", detail: "getUserMedia nicht verfügbar — kein sicherer Kontext (HTTPS)?" });
+          setState({ phase: "error", detail: "getUserMedia steht nicht zur Verfügung." });
           return;
         }
         // Eine einzige Kamera-Anfrage mit Zeitschaltung: hängt iOS sie auf,
@@ -142,7 +151,7 @@ export default function QrScanner({ onCode, className }: QrScannerProps) {
   // Endgültiger Fehler (kein Zugriff/kein HTTPS): kompakte Karte statt großer
   // schwarzer Videofläche — die Fläche bleibt aber (versteckt) im DOM, damit
   // "Kamera erneut starten" das Video-Element wiederfindet.
-  const cameraFailed = state.phase === "error";
+  const cameraFailed = state.phase === "error" || state.phase === "insecure";
 
   return (
     <div className={className}>
@@ -196,12 +205,31 @@ export default function QrScanner({ onCode, className }: QrScannerProps) {
         )}
       </div>
 
-      {cameraFailed && (
+      {state.phase === "insecure" && (
+        <div className="card bg-amber-500/10 border-amber-500/30">
+          <h2 className="font-semibold text-amber-300 mb-1">
+            Kamera braucht eine gesicherte Verbindung
+          </h2>
+          <p className="text-sm text-amber-200/90">
+            Diese Seite läuft über <span className="font-mono">http://{state.host}</span>.
+            Browser geben die Kamera nur über <strong>HTTPS</strong> frei (oder direkt auf
+            dem Gerät selbst) — das gilt für iPhone und Android gleichermaßen. Es liegt
+            also nicht an einer fehlenden Berechtigung.
+          </p>
+          <p className="text-sm text-amber-200/90 mt-2">
+            Für den Kamera-Scan am Handy braucht OnTrack einen Server mit HTTPS. Bis
+            dahin: Nummer unten von Hand eintippen.
+          </p>
+        </div>
+      )}
+
+      {state.phase === "error" && (
         <div className="card bg-red-500/10 border-red-500/30">
           <h2 className="font-semibold text-red-300 mb-1">Kamera nicht verfügbar</h2>
           <p className="text-sm text-red-300">
             Kamera-Zugriff erlauben: iPhone-Einstellungen → Apps → Safari → Kamera → „Fragen“
-            oder „Erlauben“. Funktioniert nur über HTTPS — oder nutze die manuelle Eingabe.
+            oder „Erlauben“. Android: Adressleiste → Schloss-Symbol → Berechtigungen.
+            Oder nutze die manuelle Eingabe.
           </p>
           <p className="text-xs text-red-300/70 font-mono break-all mt-2">{state.detail}</p>
           <button
