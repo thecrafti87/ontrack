@@ -253,10 +253,22 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       <div className="card flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="font-semibold">Packliste</h2>
-          <p className="text-sm text-muted">
-            Gepackt {packedOrLater}/{total} · Aufgebaut {builtOrLater}/{total} · Zurück {returnedCount}/
-            {total}
-          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className="text-sm text-muted">
+              Gepackt {packedOrLater}/{total} · Aufgebaut {builtOrLater}/{total} · Zurück{" "}
+              {returnedCount}/{total}
+            </p>
+            {total > 0 && (
+              <a
+                href={`/api/export/packliste/${event.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary shrink-0"
+              >
+                Als PDF drucken
+              </a>
+            )}
+          </div>
         </div>
 
         {editable && total > 0 && (

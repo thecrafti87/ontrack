@@ -162,9 +162,28 @@ export default async function GeraetePage({
         ))}
       </div>
 
-      <p className="text-sm text-muted">
-        {totalCount} Geräte · Seite {page} von {totalPages}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted">
+          {totalCount} Geräte · Seite {page} von {totalPages}
+        </p>
+        {/* Export immer über den gesamten Bestand, nicht über den gefilterten
+            Ausschnitt — eine Inventarliste soll vollständig sein. */}
+        <p className="text-sm text-muted">
+          Bestand exportieren:{" "}
+          <a href="/api/export/inventar?format=csv" className="text-accent underline">
+            CSV
+          </a>{" "}
+          ·{" "}
+          <a
+            href="/api/export/inventar?format=pdf"
+            className="text-accent underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            PDF
+          </a>
+        </p>
+      </div>
 
       {/* Desktop: kompakte Tabelle mit sticky Kopf im Scrollbereich */}
       <div className="hidden md:block overflow-auto max-h-[65vh] rounded-2xl border border-line">
