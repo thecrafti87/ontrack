@@ -115,7 +115,12 @@ export default function AppShell({ user, children }: AppShellProps) {
           ))}
         </nav>
         <div className="flex items-center gap-4 shrink-0">
-          <span className="text-sm text-muted">{user.name}</span>
+          <Link
+            href="/konto"
+            className="text-sm text-muted hover:text-foreground transition-colors"
+          >
+            {user.name}
+          </Link>
           <LogoutForm />
         </div>
       </header>

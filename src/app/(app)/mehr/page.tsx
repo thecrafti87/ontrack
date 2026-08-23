@@ -46,6 +46,7 @@ export default async function MehrPage() {
     <div className="p-4 md:hidden flex flex-col gap-3 max-w-md mx-auto">
       <h1 className="text-xl font-bold mb-1">Mehr</h1>
 
+      <NavRow href="/konto" icon={<PersonIcon />} label="Mein Konto" />
       <NavRow href="/cases" icon={<BoxIcon />} label="Cases" />
       <NavRow href="/standorte" icon={<MapPinIcon />} label="Standorte" />
       <NavRow href="/wartung" icon={<WrenchIcon />} label="Wartung" />

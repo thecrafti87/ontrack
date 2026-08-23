@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { formatDate, type Role } from "@/lib/constants";
-import { ApproveUserForm, RoleForm, DeactivateUserForm, DeleteUserForm } from "./forms";
+import {
+  ApproveUserForm,
+  RoleForm,
+  DeactivateUserForm,
+  DeleteUserForm,
+  ResetPasswordForm,
+} from "./forms";
 
 export const metadata: Metadata = { title: "Benutzer" };
 
@@ -64,6 +70,7 @@ export default async function BenutzerPage() {
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       {!u.approved && <ApproveUserForm userId={u.id} />}
+                      <ResetPasswordForm userId={u.id} userName={u.name} />
                       {!isSelf && u.approved && (
                         <DeactivateUserForm userId={u.id} userName={u.name} />
                       )}
@@ -101,6 +108,7 @@ export default async function BenutzerPage() {
               <RoleForm userId={u.id} currentRole={u.role as Role} />
               <div className="flex flex-wrap gap-2">
                 {!u.approved && <ApproveUserForm userId={u.id} />}
+                <ResetPasswordForm userId={u.id} userName={u.name} />
                 {!isSelf && u.approved && <DeactivateUserForm userId={u.id} userName={u.name} />}
                 {!isSelf && <DeleteUserForm userId={u.id} userName={u.name} />}
               </div>

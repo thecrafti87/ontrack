@@ -2,11 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { generatePassword, hashPassword, invalidateSessions, requireRole } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { ROLES, type Role } from "@/lib/constants";
 
-export type ActionState = { error?: string } | undefined;
+export type ActionState =
+  | {
+      error?: string;
+      /** Neu gesetztes Passwort — wird dem Admin einmalig zum Weitergeben angezeigt. */
+      newPassword?: string;
+      forUser?: string;
+    }
+  | undefined;
 
 function isValidRole(value: string): value is Role {
   return value in ROLES;
@@ -121,4 +128,40 @@ export async function deleteUserAction(
 
   revalidatePath("/benutzer");
   return undefined;
+}
+
+/**
+ * Setzt ein neues Passwort und zeigt es dem Admin einmalig an.
+ *
+ * Kein E-Mail-Versand: OnTrack hat keine Mail-Infrastruktur, und die
+ * Desktop-Version könnte gar keine verschicken. Der Admin gibt das Passwort
+ * mündlich weiter, der Benutzer ändert es danach unter „Mein Konto“.
+ */
+export async function resetUserPasswordAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireRole("ADMIN");
+  const id = String(formData.get("id") ?? "");
+
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target) return { error: "Benutzer nicht gefunden." };
+
+  const password = generatePassword();
+  await prisma.user.update({
+    where: { id },
+    data: { passwordHash: await hashPassword(password) },
+  });
+
+  // Alle Sitzungen des Benutzers beenden — auch die eigene, falls der Admin
+  // sein eigenes Passwort zurücksetzt.
+  await invalidateSessions(id);
+
+  await logActivity({
+    userId: admin.id,
+    action: `Passwort zurückgesetzt für ${target.email}`,
+  });
+
+  revalidatePath("/benutzer");
+  return { newPassword: password, forUser: target.name };
 }

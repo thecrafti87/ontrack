@@ -1,4 +1,5 @@
 import "server-only";
+import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
@@ -75,4 +76,52 @@ export async function requireRole(...roles: Role[]): Promise<SessionUser> {
 /** Helfer dürfen nur lesen und Event-Status abhaken. */
 export function canEdit(user: SessionUser): boolean {
   return user.role === "ADMIN" || user.role === "TECHNIKER";
+}
+
+/** Kennung der laufenden Sitzung (für "alle anderen Geräte abmelden"). */
+export async function currentSessionId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get(SESSION_COOKIE)?.value ?? null;
+}
+
+/**
+ * Alle Sitzungen eines Benutzers beenden, wahlweise mit Ausnahme einer.
+ *
+ * Nach einer Passwortänderung ist das Pflicht: Wer das alte Passwort kannte,
+ * darf nicht über eine offene Sitzung weiter angemeldet bleiben.
+ */
+export async function invalidateSessions(
+  userId: string,
+  keepSessionId?: string | null
+): Promise<number> {
+  const result = await prisma.session.deleteMany({
+    where: {
+      userId,
+      ...(keepSessionId ? { NOT: { id: keepSessionId } } : {}),
+    },
+  });
+  return result.count;
+}
+
+/**
+ * Aussprechbares Startpasswort erzeugen, das der Admin mündlich weitergeben kann.
+ *
+ * Ohne leicht verwechselbare Zeichen (0/O, 1/l/I) — es wird abgetippt oder am
+ * Telefon durchgegeben, und ein Tippfehler kostet einen weiteren Anruf.
+ */
+export function generatePassword(length = 12): string {
+  const alphabet = "abcdefghijkmnpqrstuvwxyzACDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.randomBytes(length);
+  let out = "";
+  for (let i = 0; i < length; i++) {
+    out += alphabet[bytes[i]! % alphabet.length];
+  }
+  return out;
+}
+
+/** Mindestanforderung an ein Passwort. Gibt eine Fehlermeldung zurück oder null. */
+export function validatePassword(password: string): string | null {
+  if (password.length < 8) return "Das Passwort muss mindestens 8 Zeichen lang sein.";
+  if (password.length > 200) return "Das Passwort ist zu lang.";
+  return null;
 }
