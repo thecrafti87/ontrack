@@ -22,6 +22,8 @@ import {
 } from "./PacklistForms";
 import { AddDevicesPicker } from "./AddDevicesPicker";
 import { CollapsibleGroup } from "./CollapsibleGroup";
+import { MISSION_PHASES, type MissionPhase } from "@/lib/constants";
+import { StartMissionForm } from "../../einsatz/forms";
 import { PlanUploadForm } from "./PlanUploadForm";
 import { PlanBoard, type PlanItem } from "./PlanBoard";
 import { AdvanceStatusButton } from "../itemActions";
@@ -48,11 +50,11 @@ type PacklistItem = {
 function PacklistGroups({
   items,
   editable,
-  defaultOpenDesktop,
+  defaultOpen,
 }: {
   items: PacklistItem[];
   editable: boolean;
-  defaultOpenDesktop: boolean;
+  defaultOpen: boolean;
 }) {
   const groups = groupByCategory(items, (i) => i.device.category);
 
@@ -63,7 +65,7 @@ function PacklistGroups({
         return (
           <CollapsibleGroup
             key={category}
-            defaultOpenDesktop={defaultOpenDesktop}
+            defaultOpen={defaultOpen}
             summary={
               <>
                 <span>
@@ -251,6 +253,21 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
       {/* Packliste */}
       <div className="card flex flex-col gap-4">
+        {/* Der Weg in die Arbeit steht über der Liste, nicht in einem Untermenü. */}
+        {total > 0 && (
+          <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface-2 p-3">
+            <p className="text-sm font-medium">Einsatz starten</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {(Object.keys(MISSION_PHASES) as MissionPhase[]).map((phase) => (
+                <StartMissionForm key={phase} eventId={event.id} phase={phase} />
+              ))}
+            </div>
+            <p className="text-xs text-muted">
+              Danach hakt jeder Scan das Gerät direkt ab — ohne Zwischenklick.
+            </p>
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="font-semibold">Packliste</h2>
           <div className="flex items-center gap-3 flex-wrap">
@@ -281,11 +298,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         {event.items.length === 0 ? (
           <p className="text-muted text-sm">Noch keine Geräte eingeplant.</p>
         ) : (
-          /* Desktop initial offen unter Schwellwert, mobil immer zu — via CollapsibleGroup */
+          /* Die Packliste ist der Zweck dieser Seite: unterhalb des Schwellwerts
+             steht sie offen da, auf jedem Gerät. */
           <PacklistGroups
             items={event.items}
             editable={editable}
-            defaultOpenDesktop={total < GROUP_AUTOOPEN_THRESHOLD}
+            defaultOpen={total < GROUP_AUTOOPEN_THRESHOLD}
           />
         )}
       </div>

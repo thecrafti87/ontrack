@@ -24,6 +24,7 @@ model User {
   photos             Photo[]
   feedbacks          Feedback[]
   maintenanceRecords MaintenanceRecord[]
+  mission            ActiveMission?
 }
 
 model Session {
@@ -115,6 +116,7 @@ model Event {
   items       EventItem[]
   logs        ActivityLog[]
   rigFixtures RigFixture[]
+  missions    ActiveMission[]
 }
 
 model EventItem {
@@ -308,4 +310,26 @@ model Feedback {
   resolvedAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── Einsatzmodus ────────────────────────────────────────────────────
+
+/**
+ * Der laufende Einsatz eines Benutzers: ein Event plus die Phase, in der
+ * gerade gearbeitet wird. Solange er läuft, hakt ein Scan das Gerät direkt
+ * ab, statt nur seine Detailseite zu öffnen.
+ *
+ * Bewusst je Benutzer und nicht global: Beim Abbau einer Veranstaltung kann
+ * eine Person schon zurückräumen, während eine andere noch abbaut.
+ */
+model ActiveMission {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  eventId   String
+  /** Zielstatus der Phase: GEPACKT | AUFGEBAUT | ABGEBAUT | ZURUECK */
+  phase     String
+  startedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }

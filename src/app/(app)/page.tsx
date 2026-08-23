@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { formatDateRange, formatDateTime } from "@/lib/constants";
+import { MISSION_PHASES, formatDateRange, formatDateTime, type MissionPhase } from "@/lib/constants";
 import { getMaintenanceDueDate, getMaintenanceUrgency } from "@/lib/maintenance";
+import { getActiveMission } from "@/lib/mission";
+import { StartMissionForm } from "./einsatz/forms";
 
 export const metadata: Metadata = { title: "Start" };
 
@@ -19,9 +21,12 @@ function endOfDay(d: Date): Date {
   return x;
 }
 
+const PHASEN = Object.keys(MISSION_PHASES) as MissionPhase[];
+
 export default async function DashboardPage() {
   const user = await requireUser();
   const isAdmin = user.role === "ADMIN";
+  const mission = await getActiveMission(user.id);
 
   const today = startOfDay(new Date());
   const todayEnd = endOfDay(new Date());
@@ -82,13 +87,65 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto flex flex-col gap-6">
-      {/* Mobil: Scan-Button prominent oben */}
-      <Link
-        href="/scan"
-        className="md:hidden card flex items-center justify-center gap-2 text-center bg-accent text-accent-fg border-accent hover:bg-amber-400 transition-colors min-h-16 font-semibold text-lg"
-      >
-        <span className="text-2xl">📷</span> QR-/Barcode-Scan
-      </Link>
+      {/* Die Frage „was ist jetzt zu tun" schlägt jede Kennzahl. Läuft ein
+          Einsatz, steht er ganz oben; sonst der schnellste Weg in einen. */}
+      {mission ? (
+        <Link
+          href="/einsatz"
+          className="card flex flex-col gap-3 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/15 transition-colors"
+        >
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-sm text-emerald-300">
+                Läuft: {MISSION_PHASES[mission.phase].label}
+              </p>
+              <p className="text-xl font-bold leading-tight">{mission.event.name}</p>
+            </div>
+            <p className="text-3xl font-bold tabular-nums shrink-0">
+              {mission.fortschritt.erledigt}
+              <span className="text-muted text-lg">/{mission.fortschritt.gesamt}</span>
+            </p>
+          </div>
+          <div className="h-2.5 w-full rounded-full bg-surface-2 overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 transition-all"
+              style={{
+                width: `${
+                  mission.fortschritt.gesamt > 0
+                    ? Math.round((mission.fortschritt.erledigt / mission.fortschritt.gesamt) * 100)
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+          <span className="text-sm font-semibold text-emerald-300">Weiterscannen →</span>
+        </Link>
+      ) : (
+        <>
+          {laufend.length > 0 ? (
+            <div className="card flex flex-col gap-3">
+              <div>
+                <h2 className="font-semibold">{laufend[0]!.name} läuft gerade</h2>
+                <p className="text-sm text-muted">
+                  Einsatz starten — danach hakt jeder Scan direkt ab.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {PHASEN.map((phase) => (
+                  <StartMissionForm key={phase} eventId={laufend[0]!.id} phase={phase} />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <Link
+              href="/einsatz"
+              className="md:hidden card flex items-center justify-center gap-2 text-center bg-accent text-accent-fg border-accent hover:bg-amber-400 transition-colors min-h-16 font-semibold text-lg"
+            >
+              <span className="text-2xl">📷</span> Einsatz starten
+            </Link>
+          )}
+        </>
+      )}
 
       <h1 className="text-2xl font-bold">Willkommen, {user.name}</h1>
 

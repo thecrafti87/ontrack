@@ -46,7 +46,11 @@ export default async function MehrPage() {
     <div className="p-4 md:hidden flex flex-col gap-3 max-w-md mx-auto">
       <h1 className="text-xl font-bold mb-1">Mehr</h1>
 
-      <NavRow href="/konto" icon={<PersonIcon />} label="Mein Konto" />
+      {/* Dieselbe Ordnung wie im Menüband am Desktop: Bestand, dann
+          Verwaltung, dann das eigene Konto. */}
+      <div className="mb-1 text-sm font-semibold text-muted uppercase tracking-wide">
+        Bestand
+      </div>
       <NavRow href="/cases" icon={<BoxIcon />} label="Cases" />
       <NavRow href="/standorte" icon={<MapPinIcon />} label="Standorte" />
       <NavRow href="/wartung" icon={<WrenchIcon />} label="Wartung" />
@@ -55,14 +59,19 @@ export default async function MehrPage() {
 
       {isAdmin && (
         <>
-          <div className="mt-2 mb-1 text-sm font-semibold text-muted uppercase tracking-wide">
-            Administration
+          <div className="mt-4 mb-1 text-sm font-semibold text-muted uppercase tracking-wide">
+            Verwaltung
           </div>
           <NavRow href="/benutzer" icon={<PersonIcon />} label="Benutzer" />
           <NavRow href="/einstellungen" icon={<GearIcon />} label="Einstellungen" />
           <NavRow href="/feedback" icon={<SpeechBubbleIcon />} label="Feedback" />
         </>
       )}
+
+      <div className="mt-4 mb-1 text-sm font-semibold text-muted uppercase tracking-wide">
+        Konto
+      </div>
+      <NavRow href="/konto" icon={<PersonIcon />} label="Mein Konto" />
 
       <form method="post" action="/logout" className="mt-4">
         <button type="submit" className="btn-danger w-full">

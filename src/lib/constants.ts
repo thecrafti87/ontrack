@@ -59,6 +59,65 @@ export function isMaintenanceResult(value: string): value is MaintenanceResult {
   return value in MAINTENANCE_RESULT;
 }
 
+/**
+ * Die vier Phasen des Einsatzmodus.
+ *
+ * Sie bilden direkt auf die bestehenden Packlisten-Status ab — es gibt kein
+ * zweites Statusmodell daneben. Eine Phase bedeutet: „jedes gescannte Gerät
+ * bekommt diesen Status".
+ */
+export const MISSION_PHASES = {
+  GEPACKT: {
+    label: "Packen",
+    /** Was am Gerät passiert, wenn es gescannt wird. */
+    action: "eingepackt",
+    hint: "Gerät scannen = eingepackt",
+  },
+  AUFGEBAUT: {
+    label: "Aufbauen",
+    action: "aufgebaut",
+    hint: "Gerät scannen = aufgebaut",
+  },
+  ABGEBAUT: {
+    label: "Abbauen",
+    action: "abgebaut",
+    hint: "Gerät scannen = abgebaut",
+  },
+  ZURUECK: {
+    label: "Zurückräumen",
+    action: "zurück im Lager",
+    hint: "Gerät scannen = zurück im Lager",
+  },
+} as const;
+export type MissionPhase = keyof typeof MISSION_PHASES;
+
+export function isMissionPhase(value: string): value is MissionPhase {
+  return value in MISSION_PHASES;
+}
+
+/**
+ * Reihenfolge der Packlisten-Status als Zahl — geplant = 0 bis zurück = 4.
+ *
+ * Damit lässt sich beantworten, ob ein Gerät eine Phase schon hinter sich hat.
+ * Ein bereits aufgebautes Gerät soll beim Packen-Scan nicht zurückgestuft
+ * werden: Ein Scan darf nie rückwärts buchen.
+ */
+export function eventItemStatusRank(status: string): number {
+  const reihenfolge: string[] = [];
+  let aktuell: string | null = "GEPLANT";
+  while (aktuell) {
+    reihenfolge.push(aktuell);
+    aktuell = EVENT_ITEM_STATUS[aktuell as EventItemStatus].next;
+  }
+  const index = reihenfolge.indexOf(status);
+  return index === -1 ? 0 : index;
+}
+
+/** Hat das Gerät die Phase bereits erreicht oder überschritten? */
+export function hasReachedPhase(itemStatus: string, phase: MissionPhase): boolean {
+  return eventItemStatusRank(itemStatus) >= eventItemStatusRank(phase);
+}
+
 export const ROLES = {
   ADMIN: { label: "Admin" },
   TECHNIKER: { label: "Techniker" },

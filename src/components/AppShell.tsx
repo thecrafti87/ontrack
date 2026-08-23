@@ -2,18 +2,42 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FeedbackButton } from "./FeedbackButton";
 
 type AppShellProps = {
   user: { name: string; role: string };
+  /** Läuft gerade ein Einsatz? Dann führt die Bedienung dorthin statt in die Verwaltung. */
+  mission: {
+    phaseLabel: string;
+    eventName: string;
+    erledigt: number;
+    gesamt: number;
+  } | null;
   children: ReactNode;
 };
 
-const MAIN_NAV = [
+/**
+ * Das Menüband ist nach Zweck geordnet, nicht als flache Liste.
+ *
+ * Vorher standen zwölf gleichrangige Einträge nebeneinander und brachen bei
+ * schmalen Fenstern in zwei Reihen um. Alles war sichtbar, aber nichts war
+ * gewichtet: Der tägliche Einsatz stand gleichberechtigt neben dem
+ * Etikettendruck. Jetzt sind vier Ziele dauerhaft sichtbar, der Rest liegt
+ * in zwei benannten Gruppen.
+ */
+type NavItem = { href: string; label: string };
+
+/** Was man täglich braucht — bleibt immer sichtbar. */
+const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Start" },
+  { href: "/einsatz", label: "Einsatz" },
   { href: "/geraete", label: "Geräte" },
   { href: "/events", label: "Events" },
+];
+
+/** Alles rund um den Bestand — regelmäßig, aber nicht ständig. */
+const BESTAND_NAV: NavItem[] = [
   { href: "/cases", label: "Cases" },
   { href: "/standorte", label: "Standorte" },
   { href: "/wartung", label: "Wartung" },
@@ -21,7 +45,8 @@ const MAIN_NAV = [
   { href: "/import", label: "Import" },
 ];
 
-const ADMIN_NAV = [
+/** Nur für Admins, und dort selten. */
+const VERWALTUNG_NAV: NavItem[] = [
   { href: "/benutzer", label: "Benutzer" },
   { href: "/einstellungen", label: "Einstellungen" },
   { href: "/feedback", label: "Feedback" },
@@ -88,24 +113,112 @@ function LogoutForm({ className }: { className?: string }) {
   );
 }
 
-export default function AppShell({ user, children }: AppShellProps) {
+/**
+ * Eine benannte Menügruppe. Nutzt kein <details>: Das schließt sich nicht,
+ * wenn man daneben klickt, und genau das erwartet man von einem Menü.
+ */
+function NavGroup({
+  label,
+  items,
+  pathname,
+}: {
+  label: string;
+  items: NavItem[];
+  pathname: string;
+}) {
+  const [offen, setOffen] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const enthaeltAktives = items.some((i) => isActive(pathname, i.href));
+
+  useEffect(() => {
+    if (!offen) return;
+    const beiKlick = (e: MouseEvent) => {
+      if (!container.current?.contains(e.target as Node)) setOffen(false);
+    };
+    const beiTaste = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOffen(false);
+    };
+    document.addEventListener("mousedown", beiKlick);
+    document.addEventListener("keydown", beiTaste);
+    return () => {
+      document.removeEventListener("mousedown", beiKlick);
+      document.removeEventListener("keydown", beiTaste);
+    };
+  }, [offen]);
+
+  // Beim Seitenwechsel schließen — sonst bleibt das Menü nach dem Klick offen.
+  // Während des Renderns statt in einem Effect: das ist die von React
+  // vorgesehene Form und spart einen Durchlauf mit noch offenem Menü.
+  const [letzterPfad, setLetzterPfad] = useState(pathname);
+  if (pathname !== letzterPfad) {
+    setLetzterPfad(pathname);
+    if (offen) setOffen(false);
+  }
+
+  return (
+    <div ref={container} className="relative">
+      <button
+        type="button"
+        onClick={() => setOffen((v) => !v)}
+        aria-expanded={offen}
+        aria-haspopup="true"
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+          enthaeltAktives || offen
+            ? "text-accent bg-surface-2"
+            : "text-muted hover:text-foreground hover:bg-surface-2"
+        }`}
+      >
+        {label}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          aria-hidden="true"
+          className={`transition-transform ${offen ? "rotate-180" : ""}`}
+        >
+          <path d="M1 3.5 5 7.5 9 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {offen && (
+        <div className="absolute left-0 top-full mt-1 min-w-52 rounded-xl border border-line bg-surface p-1.5 shadow-xl shadow-black/50 z-30">
+          {items.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive(pathname, item.href)
+                  ? "text-accent bg-surface-2"
+                  : "text-muted hover:text-foreground hover:bg-surface-2"
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AppShell({ user, mission, children }: AppShellProps) {
   const pathname = usePathname();
   const isAdmin = user.role === "ADMIN";
 
   return (
     <div className="flex min-h-full flex-col">
-      {/* Desktop-Kopfleiste */}
-      {/* Feste Höhe wäre falsch: bei schmalen Fenstern passen die Einträge in
-          eine Zeile nicht mehr. Vorher stand overflow-x-auto hier — die
-          überzähligen Einträge waren dann nur über einen unsichtbaren
-          Scrollweg erreichbar, auf dem Mac ohne Scrollleiste praktisch
-          verborgen. Jetzt bricht die Leiste um und wächst mit. */}
-      <header className="hidden md:flex items-center gap-x-6 gap-y-2 flex-wrap border-b border-line bg-surface px-6 min-h-16 py-2 sticky top-0 z-20">
+      {/* Desktop-Kopfleiste: vier ständige Ziele, der Rest in zwei Gruppen.
+          Dadurch passt die Leiste wieder in eine Zeile und gewichtet, was
+          täglich gebraucht wird. */}
+      {/* min-h statt fester Höhe: Ab etwa 900 px passt alles in eine Zeile.
+          Darunter bricht die Leiste um, statt Einträge abzuschneiden — mit
+          sechs Elementen bleibt die zweite Zeile kurz. */}
+      <header className="hidden md:flex items-center gap-x-6 gap-y-2 flex-wrap border-b border-line bg-surface px-6 min-h-16 py-2.5 sticky top-0 z-20">
         <Link href="/" className="text-xl font-bold text-accent shrink-0">
           OnTrack
         </Link>
-        <nav className="flex flex-wrap items-center gap-1 flex-1">
-          {[...MAIN_NAV, ...(isAdmin ? ADMIN_NAV : [])].map((item) => (
+        <nav className="flex flex-wrap items-center gap-1 flex-1 min-w-0">
+          {PRIMARY_NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -118,6 +231,13 @@ export default function AppShell({ user, children }: AppShellProps) {
               {item.label}
             </Link>
           ))}
+
+          <span className="mx-2 h-5 w-px bg-line shrink-0" aria-hidden="true" />
+
+          <NavGroup label="Bestand" items={BESTAND_NAV} pathname={pathname} />
+          {isAdmin && (
+            <NavGroup label="Verwaltung" items={VERWALTUNG_NAV} pathname={pathname} />
+          )}
         </nav>
         <div className="flex items-center gap-4 shrink-0">
           <Link
@@ -139,6 +259,22 @@ export default function AppShell({ user, children }: AppShellProps) {
       {/* Zusätzlicher Freiraum unten: Platz für Bottom-Nav + darüber schwebenden
           Feedback-FAB (mobil bottom-24, size-14) bzw. den Desktop-FAB
           (bottom-6, size-14), damit beide keinen Seiteninhalt verdecken. */}
+      {/* Dauerhafter Hinweis auf den laufenden Einsatz — er soll nie in
+          Vergessenheit geraten, während man in der Verwaltung unterwegs ist. */}
+      {mission && !isActive(pathname, "/einsatz") && (
+        <Link
+          href="/einsatz"
+          className="flex items-center justify-between gap-3 border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300 hover:bg-emerald-500/15 transition-colors"
+        >
+          <span className="truncate">
+            <span className="font-semibold">{mission.phaseLabel}</span> · {mission.eventName}
+          </span>
+          <span className="shrink-0 tabular-nums font-semibold">
+            {mission.erledigt}/{mission.gesamt}
+          </span>
+        </Link>
+      )}
+
       <main className="flex-1 pb-40 md:pb-20">{children}</main>
 
       <FeedbackButton />
@@ -168,12 +304,21 @@ export default function AppShell({ user, children }: AppShellProps) {
             Geräte
           </Link>
           <div className="flex items-center justify-center">
+            {/* Läuft ein Einsatz, führt der große Knopf dorthin — dann ist der
+                Scan ein Arbeitsschritt und kein Nachschlagen. */}
             <Link
-              href="/scan"
-              aria-label="QR-Scan"
-              className="flex items-center justify-center size-14 -mt-6 rounded-full bg-accent text-accent-fg shadow-lg shadow-black/40 border-4 border-surface"
+              href={mission ? "/einsatz" : "/scan"}
+              aria-label={mission ? `Einsatz: ${mission.phaseLabel}` : "QR-Scan"}
+              className={`relative flex items-center justify-center size-14 -mt-6 rounded-full shadow-lg shadow-black/40 border-4 border-surface ${
+                mission ? "bg-emerald-500 text-black" : "bg-accent text-accent-fg"
+              }`}
             >
               <ScanIcon />
+              {mission && (
+                <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-surface border border-emerald-500/60 text-[10px] font-bold text-emerald-300 flex items-center justify-center tabular-nums">
+                  {mission.gesamt - mission.erledigt}
+                </span>
+              )}
             </Link>
           </div>
           <Link

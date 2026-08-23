@@ -1,39 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 /**
- * Aufklappbare Gruppe (details/summary) mit responsivem Initialzustand.
- * SSR liefert immer "zugeklappt" (kein Hydration-Mismatch); erst nach dem
- * Mount wird auf Desktop-Breite (>= 768px, Tailwind-`md`) bei Bedarf
- * automatisch geöffnet. Manuelles Auf-/Zuklappen bleibt über onToggle erhalten.
+ * Aufklappbare Gruppe der Packliste.
+ *
+ * Früher blieb sie auf dem Handy grundsätzlich zugeklappt und öffnete sich
+ * nur auf Desktop-Breite. Genau falsch herum: Auf dem Handy steht man vor dem
+ * Fahrzeug und will die Liste sehen, nicht erst vier Gruppen aufklappen. Der
+ * Anfangszustand hängt jetzt nur noch an der Länge der Liste und nicht mehr an
+ * der Bildschirmbreite — dadurch kann er direkt vom Server kommen, ohne
+ * Abweichung bei der Hydration.
  */
 export function CollapsibleGroup({
-  defaultOpenDesktop,
+  defaultOpen,
   summary,
   children,
 }: {
-  defaultOpenDesktop: boolean;
+  defaultOpen: boolean;
   summary: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!defaultOpenDesktop) return;
-    // Entscheidung erst, wenn das Layout eine echte Breite hat (innerWidth 0 =
-    // noch nicht gelayoutet, z. B. Prerender/Hintergrund-Kontext).
-    let raf = 0;
-    const decide = () => {
-      if (window.innerWidth === 0) {
-        raf = requestAnimationFrame(decide);
-        return;
-      }
-      if (window.matchMedia("(min-width: 768px)").matches) setOpen(true);
-    };
-    decide();
-    return () => cancelAnimationFrame(raf);
-  }, [defaultOpenDesktop]);
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <details
