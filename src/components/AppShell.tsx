@@ -95,11 +95,16 @@ export default function AppShell({ user, children }: AppShellProps) {
   return (
     <div className="flex min-h-full flex-col">
       {/* Desktop-Kopfleiste */}
-      <header className="hidden md:flex items-center gap-6 border-b border-line bg-surface px-6 h-16 sticky top-0 z-20">
+      {/* Feste Höhe wäre falsch: bei schmalen Fenstern passen die Einträge in
+          eine Zeile nicht mehr. Vorher stand overflow-x-auto hier — die
+          überzähligen Einträge waren dann nur über einen unsichtbaren
+          Scrollweg erreichbar, auf dem Mac ohne Scrollleiste praktisch
+          verborgen. Jetzt bricht die Leiste um und wächst mit. */}
+      <header className="hidden md:flex items-center gap-x-6 gap-y-2 flex-wrap border-b border-line bg-surface px-6 min-h-16 py-2 sticky top-0 z-20">
         <Link href="/" className="text-xl font-bold text-accent shrink-0">
           OnTrack
         </Link>
-        <nav className="flex items-center gap-1 flex-1 overflow-x-auto">
+        <nav className="flex flex-wrap items-center gap-1 flex-1">
           {[...MAIN_NAV, ...(isAdmin ? ADMIN_NAV : [])].map((item) => (
             <Link
               key={item.href}

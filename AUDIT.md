@@ -169,14 +169,22 @@ auf welchem Event, Prüfung fällig — statt nur des Status.
 Einträgen ohne Ordnung. Zusätzlich überlappt das Benutzer-Kürzel („N") die
 Beschriftung „Start".
 
-**Nachgemessen (23.08.2026), schlimmer als beschrieben:** Auch die *Desktop*-Leiste
-reicht nicht. Bei 1100 px Fensterbreite braucht die Navigation 903 px in einem
-758 px breiten Bereich; sie wird abgeschnitten, ohne zu scrollen oder umzubrechen.
-„Feedback" ist dadurch für einen Admin schlicht **unerreichbar**, „Einstellungen"
-halb verdeckt. Das ist kein Schönheitsfehler, sondern ein nicht bedienbarer
-Menüpunkt — und es trifft jeden Laptop mit kleinem Bildschirm. Der schnelle
-Zwischenschritt wäre `flex-wrap` oder ein waagerechter Scrollbereich; die
-eigentliche Lösung ist die Neuordnung, die dieser Befund ohnehin verlangt.
+**Nachgemessen (23.08.2026):** Auch die *Desktop*-Leiste reichte nicht. Bei 1100 px
+Fensterbreite brauchte die Navigation 903 px in einem 758 px breiten Bereich.
+„Einstellungen" und „Feedback" lagen außerhalb des sichtbaren Bereichs.
+
+**Berichtigung meiner ersten Fassung:** Ich hatte geschrieben, „Feedback" sei
+dadurch **unerreichbar**. Das war falsch. Die Leiste trug bereits
+`overflow-x-auto` und ließ sich um 144 px seitwärts scrollen; die Einträge waren
+also erreichbar — nur ohne sichtbare Scrollleiste und ohne Mausrad-Unterstützung
+praktisch verborgen. Schlecht auffindbar, nicht unbedienbar. Ich hatte
+geschlossen, ohne den Scrollweg zu prüfen.
+
+**Behoben (23.08.2026):** Die Leiste bricht jetzt um statt zu scrollen
+(`flex-wrap`, Kopfhöhe wächst mit). Geprüft bei 820, 1100 und 1500 px: kein
+Überlauf, kein verdeckter Eintrag, kein waagerechtes Scrollen der Seite. Ab
+etwa 1400 px bleibt es bei einer Reihe. Die eigentliche Neuordnung der
+Navigation bleibt Teil dieses Befunds.
 
 ### B4 · Der Feedback-Knopf steht überall im Weg
 
