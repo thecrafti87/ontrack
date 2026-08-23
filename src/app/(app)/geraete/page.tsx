@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
-import { DEVICE_STATUS, type DeviceStatus } from "@/lib/constants";
+import { DEVICE_STATUS, formatDate, type DeviceStatus } from "@/lib/constants";
+import { getMaintenanceDueDate, getMaintenanceUrgency } from "@/lib/maintenance";
 import { DeviceTableRow } from "./DeviceTableRow";
 import { FilterBar } from "./FilterBar";
 
@@ -75,6 +76,9 @@ export default async function GeraetePage({
     sort === "status" ? { status: "asc" as const } :
     { inventoryNo: "asc" as const };
 
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+
   const totalCount = await prisma.device.count({ where });
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const page = Math.min(requestedPage, totalPages);
@@ -82,7 +86,18 @@ export default async function GeraetePage({
   const [devices, categoryRows] = await Promise.all([
     prisma.device.findMany({
       where,
-      include: { location: true },
+      include: {
+        location: true,
+        case: { select: { id: true, name: true } },
+        maintenances: { select: { lastDoneAt: true, intervalMonths: true } },
+        // Nur der nächste noch nicht beendete Einsatz — mehr braucht die Liste nicht.
+        eventItems: {
+          where: { event: { endDate: { gte: heute } } },
+          select: { event: { select: { id: true, name: true, startDate: true } } },
+          orderBy: { event: { startDate: "asc" } },
+          take: 1,
+        },
+      },
       orderBy,
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
@@ -96,6 +111,25 @@ export default async function GeraetePage({
   ]);
 
   const categories = categoryRows.map((c) => c.category as string);
+
+  /**
+   * Was in der Liste wirklich zählt: Wo liegt das Gerät (Case schlägt
+   * Standort — im Case ist es konkreter), wofür ist es als Nächstes
+   * eingeplant, und ist eine Prüfung überfällig.
+   */
+  const zeilen = devices.map((device) => {
+    const ueberfaellig = device.maintenances.some(
+      (m) => getMaintenanceUrgency(getMaintenanceDueDate(m.lastDoneAt, m.intervalMonths)) === "overdue"
+    );
+    const naechster = device.eventItems[0]?.event ?? null;
+    return {
+      device,
+      ort: device.case ? device.case.name : (device.location?.name ?? null),
+      ortIstCase: Boolean(device.case),
+      naechster,
+      ueberfaellig,
+    };
+  });
   const filters: Filters = { q, status, kategorie, sort, page };
 
   const statusEntries = Object.entries(DEVICE_STATUS) as [
@@ -117,11 +151,31 @@ export default async function GeraetePage({
       <Suspense fallback={<div className="h-12" />}>
         <FilterBar
           searchPlaceholder="Suche nach Name, Inventarnummer, Kategorie…"
+          activeFilters={[
+            ...(kategorie
+              ? [{ label: `Kategorie: ${kategorie}`, href: hrefFor({ kategorie: undefined, page: 1 }, filters) }]
+              : []),
+            ...(status
+              ? [
+                  {
+                    label: `Status: ${DEVICE_STATUS[status as DeviceStatus]?.label ?? status}`,
+                    href: hrefFor({ status: undefined, page: 1 }, filters),
+                  },
+                ]
+              : []),
+            ...(sort !== "nummer"
+              ? [
+                  {
+                    label: `Sortiert nach ${sort === "name" ? "Name" : "Status"}`,
+                    href: hrefFor({ sort: "nummer", page: 1 }, filters),
+                  },
+                ]
+              : []),
+          ]}
           selects={[
             {
               param: "kategorie",
-              ariaLabel: "Nach Kategorie filtern",
-              className: "input md:w-48",
+              label: "Kategorie",
               options: [
                 { value: "", label: "Alle Kategorien" },
                 ...categories.map((c) => ({ value: c, label: c })),
@@ -129,8 +183,7 @@ export default async function GeraetePage({
             },
             {
               param: "sort",
-              ariaLabel: "Sortierung",
-              className: "input md:w-40",
+              label: "Sortierung",
               defaultValue: "nummer",
               options: [
                 { value: "nummer", label: "Nummer" },
@@ -139,28 +192,36 @@ export default async function GeraetePage({
               ],
             },
           ]}
+          panelExtra={
+            <div>
+              <p className="label">Status</p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={hrefFor({ status: undefined, page: 1 }, filters)}
+                  className={`badge ${
+                    !status
+                      ? "bg-accent/15 text-accent border-accent/30"
+                      : "bg-surface-2 text-muted border-line"
+                  }`}
+                >
+                  Alle
+                </Link>
+                {statusEntries.map(([key, val]) => (
+                  <Link
+                    key={key}
+                    href={hrefFor({ status: key, page: 1 }, filters)}
+                    className={`badge ${
+                      status === key ? val.badge : "bg-surface-2 text-muted border-line"
+                    }`}
+                  >
+                    {val.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          }
         />
       </Suspense>
-
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        <Link
-          href={hrefFor({ status: undefined, page: 1 }, filters)}
-          className={`badge shrink-0 ${
-            !status ? "bg-accent/15 text-accent border-accent/30" : "bg-surface-2 text-muted border-line"
-          }`}
-        >
-          Alle
-        </Link>
-        {statusEntries.map(([key, val]) => (
-          <Link
-            key={key}
-            href={hrefFor({ status: key, page: 1 }, filters)}
-            className={`badge shrink-0 ${status === key ? val.badge : "bg-surface-2 text-muted border-line"}`}
-          >
-            {val.label}
-          </Link>
-        ))}
-      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">
@@ -192,22 +253,55 @@ export default async function GeraetePage({
             <tr>
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Inventarnr.</th>
-              <th className="px-4 py-2 font-medium">Kategorie</th>
-              <th className="px-4 py-2 font-medium">Standort</th>
+              <th className="px-4 py-2 font-medium">Wo</th>
+              <th className="px-4 py-2 font-medium">Nächster Einsatz</th>
               <th className="px-4 py-2 font-medium">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {devices.map((device) => {
+            {zeilen.map(({ device, ort, ortIstCase, naechster, ueberfaellig }) => {
               const st = DEVICE_STATUS[device.status as DeviceStatus];
               return (
                 <DeviceTableRow key={device.id} href={`/geraete/${device.id}`}>
-                  <td className="px-4 py-2 font-semibold">{device.name}</td>
-                  <td className="px-4 py-2 font-mono">{device.inventoryNo}</td>
-                  <td className="px-4 py-2">{device.category ?? "–"}</td>
-                  <td className="px-4 py-2">{device.location?.name ?? "–"}</td>
                   <td className="px-4 py-2">
-                    <span className={`badge ${st?.badge ?? ""}`}>{st?.label ?? device.status}</span>
+                    <span className="font-semibold">{device.name}</span>
+                    {device.category && (
+                      <span className="text-muted"> · {device.category}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 font-mono">{device.inventoryNo}</td>
+                  <td className="px-4 py-2">
+                    {ort ? (
+                      <>
+                        {ortIstCase && <span className="text-muted">Case: </span>}
+                        {ort}
+                      </>
+                    ) : (
+                      "–"
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    {naechster ? (
+                      <>
+                        {naechster.name}
+                        <span className="text-muted"> · {formatDate(naechster.startDate)}</span>
+                      </>
+                    ) : (
+                      <span className="text-muted">–</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={`badge ${st?.badge ?? ""}`}>{st?.label ?? device.status}</span>
+                      {ueberfaellig && (
+                        <span
+                          className="badge bg-amber-500/15 text-amber-400 border-amber-500/30"
+                          title="Eine Prüfung ist überfällig"
+                        >
+                          Prüfung fällig
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </DeviceTableRow>
               );
@@ -219,24 +313,40 @@ export default async function GeraetePage({
 
       {/* Mobil: kompakte zweizeilige Karten */}
       <div className="md:hidden flex flex-col gap-2">
-        {devices.length === 0 && <p className="text-muted">Keine Geräte gefunden.</p>}
-        {devices.map((device) => {
+        {zeilen.length === 0 && <p className="text-muted">Keine Geräte gefunden.</p>}
+        {zeilen.map(({ device, ort, ortIstCase, naechster, ueberfaellig }) => {
           const st = DEVICE_STATUS[device.status as DeviceStatus];
           return (
             <Link
               key={device.id}
               href={`/geraete/${device.id}`}
-              className="rounded-xl border border-line px-3 py-2 min-h-11 flex items-center justify-between gap-3 hover:bg-surface-2 transition-colors"
+              className="rounded-xl border border-line px-3 py-2.5 flex items-start justify-between gap-3 hover:bg-surface-2 transition-colors"
             >
               <div className="min-w-0">
                 <p className="font-semibold truncate text-sm">{device.name}</p>
                 <p className="text-xs text-muted truncate">
                   <span className="font-mono">{device.inventoryNo}</span>
-                  {device.category && <> · {device.category}</>}
-                  {device.location && <> · {device.location.name}</>}
+                  {ort && (
+                    <>
+                      {" · "}
+                      {ortIstCase ? `Case: ${ort}` : ort}
+                    </>
+                  )}
                 </p>
+                {naechster && (
+                  <p className="text-xs text-sky-400 truncate">
+                    {naechster.name} · {formatDate(naechster.startDate)}
+                  </p>
+                )}
               </div>
-              <span className={`badge shrink-0 ${st?.badge ?? ""}`}>{st?.label ?? device.status}</span>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className={`badge ${st?.badge ?? ""}`}>{st?.label ?? device.status}</span>
+                {ueberfaellig && (
+                  <span className="badge bg-amber-500/15 text-amber-400 border-amber-500/30">
+                    Prüfung fällig
+                  </span>
+                )}
+              </div>
             </Link>
           );
         })}

@@ -152,7 +152,7 @@ nützliche Teil, die anstehenden Events, steht unterhalb des sichtbaren Bereichs
 Zähler auf das, was wirklich Handlung auslöst (überfällige Prüfungen, gesperrte
 Geräte). „Offene Feedbacks" gehört nicht auf die Startseite eines Technikers.
 
-### B2 · Listen beginnen mit einer Filterwand
+### B2 · Listen beginnen mit einer Filterwand — behoben (23.08.2026)
 
 Die Geräteliste zeigt vier Bedienelemente übereinander — Suche, Kategorie,
 Sortierung, Status-Chips — bevor ein einziges Gerät erscheint. Auf dem Handy ist die
@@ -161,6 +161,13 @@ Chip-Reihe abgeschnitten („Gesperr…"), der Suchtext ebenfalls („…Kate").
 **Statt dessen:** Suche sichtbar, alles andere hinter *einem* Filter-Knopf mit
 Trefferanzahl. Und die Zeilen sollten zeigen, was im Einsatz zählt: in welchem Case,
 auf welchem Event, Prüfung fällig — statt nur des Status.
+
+**Umgesetzt:** Nur noch Suchfeld und ein „Filter"-Knopf mit der Zahl gesetzter
+Filter. Kategorie, Sortierung und Status-Chips liegen im Klappfach. Gesetzte
+Filter bleiben als abwählbare Marken sichtbar, auch wenn das Fach zu ist — sonst
+filtert man unbemerkt und wundert sich über fehlende Geräte. Die Zeilen zeigen
+jetzt Case beziehungsweise Standort, den nächsten Einsatz mit Datum und eine
+Marke „Prüfung fällig" bei überfälliger Wartung.
 
 ### B3 · Die untere Leiste passt nicht zur Arbeit — Desktop erledigt (23.08.2026)
 
@@ -193,11 +200,15 @@ Ordnung, damit Handy und Desktop nicht auseinanderlaufen. Geprüft bei 820,
 weiterhin einen festen Platz. Immerhin führt der große mittlere Knopf jetzt
 in den laufenden Einsatz statt in den freien Scan.
 
-### B4 · Der Feedback-Knopf steht überall im Weg
+### B4 · Der Feedback-Knopf steht überall im Weg — behoben (23.08.2026)
 
 Er schwebt auf jeder Seite über dem Inhalt, ist genauso auffällig wie der Scan-Knopf
 und verdeckt auf mehreren Seiten Text. Er war für den Kundentest gedacht — im
 Produkt gehört er in die Fußzeile oder unter „Mehr".
+
+**Umgesetzt:** Unauffälliges Symbol in der Kopfleiste, auf dem Handy eine Zeile
+unter „Mehr". Der Dialog ist derselbe geblieben und merkt sich weiterhin, von
+welcher Seite er geöffnet wurde.
 
 ### B5 · Die Scan-Seite hilft nicht, wenn sie nicht kann — behoben (23.08.2026)
 
@@ -217,12 +228,12 @@ HTTPS voraus. Über die Netzwerkfreigabe der Desktop-App (nur HTTP) gibt es
 ihn nicht — dort bleibt die manuelle Eingabe. Für den Handy-Scan im Alltag
 braucht OnTrack einen Server mit HTTPS.
 
-### B6 · Fehlende Seitentitel
+### B6 · Fehlende Seitentitel — behoben (23.08.2026)
 
 `/login`, `/register` und `/scan` haben keinen Seitentitel; im Browser-Tab steht nur
 „OnTrack". (Bekannt aus dem UI-Audit vom Juli, seither offen.)
 
-### B7 · Bestandene Prüfung entsperrt nicht
+### B7 · Bestandene Prüfung entsperrt nicht — behoben (23.08.2026)
 
 Neu aufgefallen beim Bau der Prüfprotokolle: Ein durchgefallenes Gerät lässt sich
 mit einem Haken sperren — aber nach bestandener Nachprüfung gibt es kein Gegenstück.
@@ -318,15 +329,34 @@ Packen gescanntes, längst aufgebautes Gerät wird nicht zurückgestuft,
 sondern als „war schon eingepackt" gemeldet. Durch Tests und einen
 Browsertest abgesichert.
 
-### Stufe 3 — Bedienung entschlacken
+### Stufe 3 — Bedienung entschlacken — abgeschlossen 23.08.2026
 
-| Was | Aufwand |
+| Was | Stand |
 |---|---|
-| Filterwand hinter einen Knopf, Zeilen zeigen Case/Event/Fälligkeit (B2) | ~1,5 Tage |
-| Untere Leiste und „Mehr" nach Arbeitshäufigkeit ordnen (B3) | ~1 Tag |
-| Feedback-Knopf aus dem Weg räumen (B4) | ~1 Std. |
-| Scan-Seite: verständliche Hilfe je System statt Fehlertext (B5) | ~0,5 Tage |
-| Seitentitel ergänzen (B6) · Entsperren nach bestandener Prüfung (B7) | ~0,5 Tage |
+| Filterwand hinter einen Knopf, Zeilen zeigen Case/Event/Fälligkeit (B2) | ✅ erledigt |
+| Untere Leiste und „Mehr" nach Arbeitshäufigkeit ordnen (B3) | ⚠️ teilweise, siehe unten |
+| Feedback-Knopf aus dem Weg räumen (B4) | ✅ erledigt |
+| Scan-Seite: verständliche Hilfe je System statt Fehlertext (B5) | ✅ erledigt |
+| Seitentitel ergänzen (B6) · Entsperren nach bestandener Prüfung (B7) | ✅ erledigt |
+
+**Zu B3, und das ist eine Berichtigung:** Der dort genannte Überlappungsfehler
+(„das Benutzer-Kürzel N verdeckt die Beschriftung Start") **existiert nicht**.
+Das „N" ist die Entwickler-Anzeige von Next.js (`nextjs-portal`) und im
+Produktionsbuild nachweislich nicht vorhanden — geprüft am erzeugten HTML. Ich
+hatte es aus einem Bildschirmfoto abgelesen, ohne es zu prüfen.
+
+Die zweite Behauptung — „Events wird selten geöffnet" — ist eine ungeprüfte
+Annahme. Die Reihenfolge der unteren Leiste wurde deshalb **nicht** umgestellt:
+Nach zwei falschen UI-Befunden in dieser Durchsicht wäre das Umsortieren auf
+Verdacht keine Verbesserung, sondern die nächste Vermutung. Umgesetzt wurde,
+was belegbar war: Die „Mehr"-Seite ist nach denselben Gruppen geordnet wie das
+Menüband, und der große mittlere Knopf führt in den laufenden Einsatz.
+
+**Ehrliche Bilanz dieser Durchsicht:** Drei meiner Befunde hielten der
+Nachprüfung nicht stand — der letzte Admin war längst geschützt (A1), „Feedback"
+war erreichbar statt unerreichbar (B3), und die Überlappung war ein
+Entwicklungsartefakt (B3). Alle drei stammten aus Bildschirmfotos und
+Codelektüre ohne Messung. Was gemessen wurde, hielt.
 
 ### Stufe 4 — Fachlich stärker
 
