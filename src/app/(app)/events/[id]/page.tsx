@@ -23,6 +23,8 @@ import {
 import { AddDevicesPicker } from "./AddDevicesPicker";
 import { CollapsibleGroup } from "./CollapsibleGroup";
 import { MISSION_PHASES, type MissionPhase } from "@/lib/constants";
+import { summarizeLoad } from "@/lib/load";
+import { LoadSummaryCard } from "@/components/LoadSummary";
 import { StartMissionForm } from "../../einsatz/forms";
 import { PlanUploadForm } from "./PlanUploadForm";
 import { PlanBoard, type PlanItem } from "./PlanBoard";
@@ -138,7 +140,18 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const event = await prisma.event.findUnique({
     where: { id },
     include: {
-      items: { include: { device: true }, orderBy: { device: { name: "asc" } } },
+      items: {
+        include: {
+          device: {
+            include: {
+              // Nur das Leistungsfeld nachladen — die übrigen Zusatzfelder
+              // braucht die Übersicht nicht.
+              fieldValues: { where: { fieldCode: "powerW" }, select: { value: true } },
+            },
+          },
+        },
+        orderBy: { device: { name: "asc" } },
+      },
     },
   });
 
@@ -153,6 +166,13 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
     ["AUFGEBAUT", "ABGEBAUT", "ZURUECK"].includes(i.status)
   ).length;
   const returnedCount = event.items.filter((i) => i.status === "ZURUECK").length;
+
+  const last = summarizeLoad(
+    event.items.map((i) => ({
+      weightKg: i.device.weightKg,
+      powerRaw: i.device.fieldValues[0]?.value ?? null,
+    }))
+  );
   const notReturnedItems = event.items.filter((i) => i.status !== "ZURUECK");
 
   // Kandidaten für "Geräte hinzufügen" — noch nicht im Event, einplanbarer Status
@@ -250,6 +270,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           </ul>
         </div>
       )}
+
+      {/* Was der LKW tragen und die Einspeisung liefern muss — steht vor der
+          Packliste, weil es die Entscheidung ist, die man vorher trifft. */}
+      <LoadSummaryCard summary={last} titel="Gewicht & Strom dieser Veranstaltung" />
 
       {/* Packliste */}
       <div className="card flex flex-col gap-4">

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { summarizeLoad } from "@/lib/load";
+import { LoadSummaryCard } from "@/components/LoadSummary";
 import { requireUser, canEdit } from "@/lib/auth";
 import { DEVICE_STATUS, type DeviceStatus, groupByCategory, GROUP_AUTOOPEN_THRESHOLD } from "@/lib/constants";
 import { resolveBaseUrl } from "@/lib/baseUrl";
@@ -86,7 +88,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     where: { id },
     include: {
       location: true,
-      devices: { orderBy: { name: "asc" } },
+      devices: {
+        include: { fieldValues: { where: { fieldCode: "powerW" }, select: { value: true } } },
+        orderBy: { name: "asc" },
+      },
     },
   });
 
@@ -98,6 +103,14 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     (d) => d.status === "DEFEKT_GEMELDET" || d.status === "GESPERRT"
   ).length;
   const desktopDefaultOpen = totalDeviceCount < GROUP_AUTOOPEN_THRESHOLD;
+
+  // Ein Case wird getragen und angeschlossen — beides will man vorher wissen.
+  const last = summarizeLoad(
+    caseRecord.devices.map((d) => ({
+      weightKg: d.weightKg,
+      powerRaw: d.fieldValues[0]?.value ?? null,
+    }))
+  );
 
   const [locations, unassignedDevices] = await Promise.all([
     prisma.location.findMany({ orderBy: { name: "asc" } }),
@@ -133,6 +146,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           </Link>
         </div>
       </div>
+
+      <LoadSummaryCard summary={last} titel="Gewicht & Strom dieses Cases" />
 
       <NfcWriteCard url={`${baseUrl}/d/${caseRecord.inventoryNo}`} />
 

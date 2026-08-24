@@ -15,6 +15,7 @@ import {
   isMaintenanceResult,
 } from "@/lib/constants";
 import { fieldByCode, parseFieldCodes } from "@/lib/fieldCatalog";
+import { buildSeries } from "@/lib/series";
 
 export type ActionState =
   | {
@@ -83,8 +84,31 @@ export async function createDeviceAction(
   if (!fields.inventoryNo) return { error: "Bitte eine Inventarnummer angeben." };
   if (!isValidStatus(fields.status)) return { error: "Ungültiger Status." };
 
-  const existing = await prisma.device.findUnique({ where: { inventoryNo: fields.inventoryNo } });
-  if (existing) return { error: `Die Inventarnummer "${fields.inventoryNo}" ist bereits vergeben.` };
+  // Serien-Anlage: mehrere gleiche Geräte mit fortlaufenden Nummern.
+  const anzahl = Math.max(1, parseInt(String(formData.get("anzahl") ?? "1"), 10) || 1);
+  const serie = buildSeries(fields.inventoryNo, anzahl);
+  if (!serie.ok) return { error: serie.fehler };
+  const nummern = serie.nummern;
+
+  // Alle Nummern vorab prüfen. Eine halb angelegte Serie wäre schlimmer als
+  // gar keine: Man müsste erst herausfinden, welche Geräte schon da sind.
+  const belegt = await prisma.device.findMany({
+    where: { inventoryNo: { in: nummern } },
+    select: { inventoryNo: true },
+    orderBy: { inventoryNo: "asc" },
+  });
+  if (belegt.length > 0) {
+    const liste = belegt.map((d) => d.inventoryNo);
+    const gezeigt = liste.slice(0, 5).join(", ");
+    return {
+      error:
+        liste.length === 1
+          ? `Die Inventarnummer "${gezeigt}" ist bereits vergeben.`
+          : `Diese Inventarnummern sind bereits vergeben: ${gezeigt}${
+              liste.length > 5 ? ` und ${liste.length - 5} weitere` : ""
+            }.`,
+    };
+  }
 
   if (fields.locationId) {
     const loc = await prisma.location.findUnique({ where: { id: fields.locationId } });
@@ -96,27 +120,41 @@ export async function createDeviceAction(
     if (!caseRecord) return { error: "Ungültiges Case." };
   }
 
-  const device = await prisma.device.create({
-    data: {
-      inventoryNo: fields.inventoryNo,
-      name: fields.name,
-      category: fields.category,
-      serialNo: fields.serialNo,
-      purchaseDate: fields.purchaseDate,
-      purchasePrice: fields.purchasePrice,
-      supplier: fields.supplier,
-      weightKg: fields.weightKg,
-      notes: fields.notes,
-      locationId: fields.locationId,
-      caseId: fields.caseId,
-      status: fields.status,
-    },
-  });
+  const gemeinsam = {
+    name: fields.name,
+    category: fields.category,
+    // Die Seriennummer gehört zum einzelnen Gerät; bei einer Serie wäre sie
+    // für alle dieselbe und damit falsch.
+    serialNo: nummern.length === 1 ? fields.serialNo : null,
+    purchaseDate: fields.purchaseDate,
+    purchasePrice: fields.purchasePrice,
+    supplier: fields.supplier,
+    weightKg: fields.weightKg,
+    notes: fields.notes,
+    locationId: fields.locationId,
+    caseId: fields.caseId,
+    status: fields.status,
+  };
 
-  await logActivity({ userId: user.id, action: "Gerät angelegt", deviceId: device.id });
+  const angelegt = await prisma.$transaction(
+    nummern.map((inventoryNo) => prisma.device.create({ data: { inventoryNo, ...gemeinsam } }))
+  );
+
+  for (const device of angelegt) {
+    await logActivity({
+      userId: user.id,
+      action: "Gerät angelegt",
+      details: angelegt.length > 1 ? `Serie von ${angelegt.length}` : undefined,
+      deviceId: device.id,
+    });
+  }
 
   revalidatePath("/geraete");
-  redirect(`/geraete/${device.id}`);
+
+  // Bei einer Serie zur Liste, gefiltert auf die neuen Geräte — dort sieht man
+  // alle auf einmal. Bei einem einzelnen Gerät direkt zu ihm.
+  if (angelegt.length === 1) redirect(`/geraete/${angelegt[0]!.id}`);
+  redirect(`/geraete?q=${encodeURIComponent(fields.name)}`);
 }
 
 export async function updateDeviceAction(

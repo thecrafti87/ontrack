@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { DEVICE_STATUS, type DeviceStatus } from "@/lib/constants";
 import { FIELD_CATALOG, FIELD_GROUPS } from "@/lib/fieldCatalog";
 import { createDeviceAction, updateDeviceAction, type ActionState } from "./actions";
+import { MAX_SERIE, buildSeries } from "@/lib/series";
 
 type DeviceFormProps = {
   mode: "create" | "edit";
@@ -131,6 +132,19 @@ export default function DeviceForm({
   const action = mode === "create" ? createDeviceAction : updateDeviceAction;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(action, undefined);
 
+  const [inventarNr, setInventarNr] = useState(initial?.inventoryNo ?? nextInventoryNo ?? "");
+  const [anzahl, setAnzahl] = useState(1);
+
+  // Vorschau der entstehenden Nummern — vor dem Anlegen sichtbar, nicht danach.
+  const serie = buildSeries(inventarNr, anzahl);
+  const vorschau = serie.ok
+    ? serie.nummern.length <= 3
+      ? `Legt an: ${serie.nummern.join(", ")}`
+      : `Legt ${serie.nummern.length} Geräte an: ${serie.nummern[0]} bis ${
+          serie.nummern[serie.nummern.length - 1]
+        }`
+    : serie.fehler;
+
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {mode === "edit" && initial && <input type="hidden" name="id" value={initial.id} />}
@@ -138,16 +152,42 @@ export default function DeviceForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="label" htmlFor="inventoryNo">
-            Inventarnummer
+            {mode === "create" && anzahl > 1 ? "Erste Inventarnummer" : "Inventarnummer"}
           </label>
           <input
             id="inventoryNo"
             name="inventoryNo"
             className="input font-mono"
             required
-            defaultValue={initial?.inventoryNo ?? nextInventoryNo ?? ""}
+            value={inventarNr}
+            onChange={(e) => setInventarNr(e.target.value)}
           />
         </div>
+
+        {/* Serien-Anlage: acht gleiche Scheinwerfer einzeln anzulegen ist der
+            Reibungspunkt, den man täglich spürt. */}
+        {mode === "create" && (
+          <div>
+            <label className="label" htmlFor="anzahl">
+              Stückzahl
+            </label>
+            <input
+              id="anzahl"
+              name="anzahl"
+              type="number"
+              min={1}
+              max={MAX_SERIE}
+              className="input"
+              value={anzahl}
+              onChange={(e) => setAnzahl(Math.max(1, parseInt(e.target.value, 10) || 1))}
+            />
+            <p className="text-xs text-muted mt-1">
+              {anzahl > 1
+                ? vorschau
+                : "Mehr als 1 legt gleich mehrere Geräte mit fortlaufenden Nummern an."}
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="label" htmlFor="name">
