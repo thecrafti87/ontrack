@@ -34,6 +34,7 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/einsatz", label: "Einsatz" },
   { href: "/geraete", label: "Geräte" },
   { href: "/events", label: "Events" },
+  { href: "/kalender", label: "Kalender" },
 ];
 
 /** Alles rund um den Bestand — regelmäßig, aber nicht ständig. */

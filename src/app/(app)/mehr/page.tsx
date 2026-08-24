@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import {
   BoxIcon,
+  CalendarIcon,
   MapPinIcon,
   WrenchIcon,
   TagIcon,
@@ -49,7 +50,9 @@ export default async function MehrPage() {
 
       {/* Dieselbe Ordnung wie im Menüband am Desktop: Bestand, dann
           Verwaltung, dann das eigene Konto. */}
-      <div className="mb-1 text-sm font-semibold text-muted uppercase tracking-wide">
+      <NavRow href="/kalender" icon={<CalendarIcon />} label="Kalender" />
+
+      <div className="mt-4 mb-1 text-sm font-semibold text-muted uppercase tracking-wide">
         Bestand
       </div>
       <NavRow href="/cases" icon={<BoxIcon />} label="Cases" />
