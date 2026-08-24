@@ -313,10 +313,20 @@ keiner — man würde einem Gerätestatus vertrauen, den es nicht mehr gibt.
 kein Gerät nachschlagen; Fotos und Defektmeldungen brauchen ebenfalls
 Verbindung. Der Scan-Ablauf — der Grund, warum man im Keller steht — läuft.
 
-### C5 · Karte fehlt trotz Zusage im Konzept
+### C5 · Karte fehlt trotz Zusage im Konzept — behoben (24.08.2026)
 
 KONZEPT.md nennt Leaflet und eine Kartenansicht „zuletzt gesehen". Umgesetzt ist
 nur ein Link auf einen externen Kartendienst.
+
+**Umgesetzt:** Kartenansicht unter „Bestand → Karte", mit Leaflet und
+OpenStreetMap wie im Konzept vorgesehen — kostenlos, ohne API-Schlüssel.
+Gezeigt werden die letzten Scan-Positionen der Geräte und die Standorte mit
+gepflegten Koordinaten, der Bildausschnitt passt sich automatisch an.
+
+**Wichtig für die Erwartung:** Positionen entstehen nur beim Scannen über
+HTTPS. Im Desktop-Betrieb und über die Netzwerkfreigabe liefert der Browser
+keinen Standort, die Karte bleibt dort also leer. Der Leerzustand sagt das
+ausdrücklich, statt den Eindruck eines Fehlers zu erwecken.
 
 ### C6 · Weitere Roadmap-Punkte, unverändert offen
 
