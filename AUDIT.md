@@ -428,10 +428,31 @@ Gewichts- und Stromsummen. Alle drei bauen auf „ein Datensatz je Gerät" auf;
 sie mit Stückzahlen zu verschränken wäre ein eigener Umbau und gehört
 entschieden, nicht nebenbei gemacht.
 
-### Stufe 5 — Ausbau
+### Stufe 5 — Ausbau — weitgehend abgearbeitet (24.08.2026)
 
-Offline-Modus (C4, eigenes Vorhaben, ~5–8 Tage) · Verleih an Dritte ·
-E-Mail-Benachrichtigungen · Kartenansicht · Betriebsstunden.
+| Was | Stand |
+|---|---|
+| Offline-Modus (C4) | ✅ Scan-Ablauf läuft ohne Netz, siehe C4 |
+| Kartenansicht (C5) | ✅ erledigt |
+| Verleih an Dritte | ✅ erledigt |
+| E-Mail-Benachrichtigungen | ⬜ offen |
+| Betriebsstunden als Wartungsauslöser | ⬜ offen |
+
+**Zum Verleih:** Herausgabe an Personen oder Firmen mit Rückgabefrist,
+Teilrückgaben je Gerät, Überfälligkeit in Tagen. Ein Gerät kann nicht
+zweimal gleichzeitig verliehen sein, und verliehene Geräte stehen bei einer
+neuen Herausgabe nicht zur Auswahl. In der Geräteliste steht „Verliehen an
+…" an der Stelle, an der sonst Case oder Standort steht — verliehen schlägt
+beides, denn das Gerät ist schlicht nicht da.
+
+**Nicht verknüpft:** Ein verliehenes Gerät lässt sich weiterhin für eine
+Veranstaltung einplanen. Die Liste zeigt beides nebeneinander, eine Warnung
+beim Einplanen gibt es aber nicht. Das gehört zur Konfliktprüfung und ist
+ein eigener Schritt.
+
+**Zu E-Mail:** Setzt eine Mail-Infrastruktur voraus, die es nicht gibt — und
+die Desktop-Fassung könnte gar keine verschicken. Das ist keine Fleißarbeit,
+sondern eine Entscheidung über den Betrieb.
 
 ---
 

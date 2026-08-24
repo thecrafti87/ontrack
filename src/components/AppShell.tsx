@@ -41,6 +41,7 @@ const PRIMARY_NAV: NavItem[] = [
 const BESTAND_NAV: NavItem[] = [
   { href: "/mengenartikel", label: "Mengenartikel" },
   { href: "/karte", label: "Karte" },
+  { href: "/verleih", label: "Verleih" },
   { href: "/cases", label: "Cases" },
   { href: "/standorte", label: "Standorte" },
   { href: "/wartung", label: "Wartung" },

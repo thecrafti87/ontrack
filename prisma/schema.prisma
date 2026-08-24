@@ -26,6 +26,7 @@ model User {
   maintenanceRecords MaintenanceRecord[]
   mission            ActiveMission?
   bulkMovements      BulkMovement[]
+  loans              Loan[]
 }
 
 model Session {
@@ -89,6 +90,7 @@ model Device {
   logs         ActivityLog[]
   fieldValues  DeviceFieldValue[]
   rigFixtures  RigFixture[]
+  loanItems    LoanItem[]
 }
 
 model Case {
@@ -391,4 +393,49 @@ model BulkMovement {
   item  BulkItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   user  User     @relation(fields: [userId], references: [id])
   event Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+}
+
+// ── Verleih ─────────────────────────────────────────────────────────
+
+/**
+ * Geräte, die an Personen oder Fremdfirmen herausgegeben wurden.
+ *
+ * Bewusst getrennt vom Gerätestatus: „Verliehen" ist keine Aussage über den
+ * Zustand des Geräts, sondern über seinen Verbleib. Ein verliehenes Gerät kann
+ * einwandfrei sein — es ist nur nicht da.
+ */
+model Loan {
+  id         String    @id @default(cuid())
+  /** Person oder Firma, an die herausgegeben wurde. */
+  borrower   String
+  contact    String?
+  issuedAt   DateTime  @default(now())
+  dueAt      DateTime
+  /** Gesetzt, sobald alle Geräte zurück sind. */
+  returnedAt DateTime?
+  notes      String?
+
+  issuedById String
+  issuedBy   User   @relation(fields: [issuedById], references: [id])
+
+  items LoanItem[]
+}
+
+/**
+ * Ein einzelnes Gerät innerhalb eines Verleihs.
+ *
+ * Die Rückgabe wird je Gerät vermerkt, nicht nur je Verleih: Teilrückgaben
+ * sind der Normalfall, und ohne diese Auflösung wüsste man nach der halben
+ * Rückgabe nicht mehr, was noch aussteht.
+ */
+model LoanItem {
+  id         String    @id @default(cuid())
+  loanId     String
+  deviceId   String
+  returnedAt DateTime?
+
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([loanId, deviceId])
 }

@@ -89,6 +89,13 @@ export default async function GeraetePage({
       include: {
         location: true,
         case: { select: { id: true, name: true } },
+        // Offener Verleih: „verliehen" schlägt jeden Standort — das Gerät ist
+        // schlicht nicht da.
+        loanItems: {
+          where: { returnedAt: null },
+          select: { loan: { select: { id: true, borrower: true, dueAt: true } } },
+          take: 1,
+        },
         maintenances: { select: { lastDoneAt: true, intervalMonths: true } },
         // Nur der nächste noch nicht beendete Einsatz — mehr braucht die Liste nicht.
         eventItems: {
@@ -122,10 +129,13 @@ export default async function GeraetePage({
       (m) => getMaintenanceUrgency(getMaintenanceDueDate(m.lastDoneAt, m.intervalMonths)) === "overdue"
     );
     const naechster = device.eventItems[0]?.event ?? null;
+    const verleih = device.loanItems[0]?.loan ?? null;
     return {
       device,
-      ort: device.case ? device.case.name : (device.location?.name ?? null),
-      ortIstCase: Boolean(device.case),
+      // Reihenfolge der Aussagekraft: verliehen schlägt Case schlägt Standort.
+      ort: verleih ? verleih.borrower : device.case ? device.case.name : (device.location?.name ?? null),
+      ortArt: verleih ? ("verliehen" as const) : device.case ? ("case" as const) : ("standort" as const),
+      verleih,
       naechster,
       ueberfaellig,
     };
@@ -259,7 +269,7 @@ export default async function GeraetePage({
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {zeilen.map(({ device, ort, ortIstCase, naechster, ueberfaellig }) => {
+            {zeilen.map(({ device, ort, ortArt, verleih, naechster, ueberfaellig }) => {
               const st = DEVICE_STATUS[device.status as DeviceStatus];
               return (
                 <DeviceTableRow key={device.id} href={`/geraete/${device.id}`}>
@@ -273,7 +283,10 @@ export default async function GeraetePage({
                   <td className="px-4 py-2">
                     {ort ? (
                       <>
-                        {ortIstCase && <span className="text-muted">Case: </span>}
+                        {ortArt === "case" && <span className="text-muted">Case: </span>}
+                        {ortArt === "verliehen" && (
+                          <span className="text-violet-400">Verliehen an </span>
+                        )}
                         {ort}
                       </>
                     ) : (
@@ -293,6 +306,14 @@ export default async function GeraetePage({
                   <td className="px-4 py-2">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className={`badge ${st?.badge ?? ""}`}>{st?.label ?? device.status}</span>
+                      {verleih && (
+                        <span
+                          className="badge bg-violet-500/15 text-violet-400 border-violet-500/30"
+                          title={`Zurück bis ${formatDate(verleih.dueAt)}`}
+                        >
+                          Verliehen
+                        </span>
+                      )}
                       {ueberfaellig && (
                         <span
                           className="badge bg-amber-500/15 text-amber-400 border-amber-500/30"
@@ -314,7 +335,7 @@ export default async function GeraetePage({
       {/* Mobil: kompakte zweizeilige Karten */}
       <div className="md:hidden flex flex-col gap-2">
         {zeilen.length === 0 && <p className="text-muted">Keine Geräte gefunden.</p>}
-        {zeilen.map(({ device, ort, ortIstCase, naechster, ueberfaellig }) => {
+        {zeilen.map(({ device, ort, ortArt, verleih, naechster, ueberfaellig }) => {
           const st = DEVICE_STATUS[device.status as DeviceStatus];
           return (
             <Link
@@ -329,7 +350,11 @@ export default async function GeraetePage({
                   {ort && (
                     <>
                       {" · "}
-                      {ortIstCase ? `Case: ${ort}` : ort}
+                      {ortArt === "case"
+                        ? `Case: ${ort}`
+                        : ortArt === "verliehen"
+                          ? `Verliehen an ${ort}`
+                          : ort}
                     </>
                   )}
                 </p>
@@ -341,6 +366,11 @@ export default async function GeraetePage({
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className={`badge ${st?.badge ?? ""}`}>{st?.label ?? device.status}</span>
+                {verleih && (
+                  <span className="badge bg-violet-500/15 text-violet-400 border-violet-500/30">
+                    Verliehen
+                  </span>
+                )}
                 {ueberfaellig && (
                   <span className="badge bg-amber-500/15 text-amber-400 border-amber-500/30">
                     Prüfung fällig
