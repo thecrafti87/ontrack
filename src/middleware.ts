@@ -11,6 +11,14 @@ const PUBLIC_PREFIXES = [
   "/manifest.webmanifest",
   "/icon-",
   "/apple-icon",
+  // Der Service Worker muss ohne Sitzung ladbar sein — sonst kann er sich
+  // gar nicht erst anmelden.
+  "/sw.js",
+  // Die Offline-Rückfallebene ebenso: Sie wird beim Installieren des Service
+  // Workers vorgeladen. Käme dort eine Weiterleitung zum Login an, würde
+  // genau diese zwischengespeichert und später statt der Offline-Seite
+  // ausgeliefert.
+  "/offline",
 ];
 
 function isPublicPath(pathname: string): boolean {

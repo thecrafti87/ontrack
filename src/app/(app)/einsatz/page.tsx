@@ -25,6 +25,7 @@ export default async function EinsatzPage() {
         </div>
 
         <EinsatzClient
+          missionId={mission.id}
           phase={mission.phase}
           eventId={mission.event.id}
           eventName={mission.event.name}

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import QrScanner from "@/components/QrScanner";
 import { NfcReadButton } from "@/components/NfcReadButton";
@@ -10,8 +17,17 @@ import {
   scanIntoMissionAction,
   type ScanOutcome,
 } from "./actions";
+import {
+  dequeueScan,
+  enqueueScan,
+  pruneOtherQueues,
+  queueKey,
+  readQueue,
+  type QueuedScan,
+} from "@/lib/offlineQueue";
 
 type Props = {
+  missionId: string;
   phase: MissionPhase;
   eventId: string;
   eventName: string;
@@ -19,11 +35,90 @@ type Props = {
   gesamt: number;
 };
 
+/**
+ * Ein Eintrag im Verlauf. „Vorgemerkt" ist bewusst ein eigener Zustand und
+ * nicht als Erfolg getarnt: Ohne Netz weiß niemand, ob das Gerät überhaupt zur
+ * Packliste gehört — das entscheidet erst der Server beim Nachbuchen.
+ */
+type Anzeige =
+  | { art: "server"; outcome: ScanOutcome }
+  | { art: "vorgemerkt"; code: string }
+  | { art: "nachgebucht"; outcome: ScanOutcome };
+
 type Eintrag = {
   id: number;
-  outcome: ScanOutcome;
+  anzeige: Anzeige;
   zeit: string;
 };
+
+const QUEUE_EVENT = "ontrack:queue-changed";
+const LEER: QueuedScan[] = [];
+
+/**
+ * Zwischenspeicher für den Momentaufnahme-Wert.
+ *
+ * useSyncExternalStore verlangt bei unveränderten Daten dieselbe Referenz —
+ * sonst rendert React endlos. Verglichen wird der rohe JSON-Text.
+ */
+let queueCache: { missionId: string; roh: string; wert: QueuedScan[] } | null = null;
+
+function queueSnapshot(missionId: string): QueuedScan[] {
+  const roh = window.localStorage.getItem(queueKey(missionId)) ?? "";
+  if (queueCache && queueCache.missionId === missionId && queueCache.roh === roh) {
+    return queueCache.wert;
+  }
+  const wert = readQueue(window.localStorage, missionId);
+  queueCache = { missionId, roh, wert };
+  return wert;
+}
+
+/** Nach jeder Änderung an der Warteschlange melden. */
+function meldeQueueAenderung() {
+  window.dispatchEvent(new Event(QUEUE_EVENT));
+}
+
+/**
+ * Vorgemerkte Scans als externe Quelle.
+ *
+ * Der Browser-Speicher gehört genau dorthin: Der Server kennt ihn nicht und
+ * liefert eine leere Liste, der Client den echten Stand — ohne Abweichung
+ * beim Hydrieren und ohne Zustandssetzen in einem Effect.
+ */
+function useWartendeScans(missionId: string): QueuedScan[] {
+  return useSyncExternalStore(
+    (melde) => {
+      window.addEventListener(QUEUE_EVENT, melde);
+      window.addEventListener("storage", melde);
+      return () => {
+        window.removeEventListener(QUEUE_EVENT, melde);
+        window.removeEventListener("storage", melde);
+      };
+    },
+    () => queueSnapshot(missionId),
+    () => LEER
+  );
+}
+
+/**
+ * Verbindungszustand als externe Quelle.
+ *
+ * useSyncExternalStore statt eines Effects: Der Server nimmt „online" an,
+ * der Client meldet den echten Zustand — ohne Abweichung beim Hydrieren.
+ */
+function useOnline(): boolean {
+  return useSyncExternalStore(
+    (melde) => {
+      window.addEventListener("online", melde);
+      window.addEventListener("offline", melde);
+      return () => {
+        window.removeEventListener("online", melde);
+        window.removeEventListener("offline", melde);
+      };
+    },
+    () => navigator.onLine,
+    () => true
+  );
+}
 
 /**
  * Kurzer Ton als Rückmeldung.
@@ -73,7 +168,11 @@ function artVon(outcome: ScanOutcome): "ok" | "schon" | "fehler" {
   return "fehler";
 }
 
-function farbeVon(outcome: ScanOutcome): string {
+function farbeVon(anzeige: Anzeige): string {
+  if (anzeige.art === "vorgemerkt") {
+    return "border-zinc-500/40 bg-zinc-500/10 text-zinc-300";
+  }
+  const outcome = anzeige.outcome;
   switch (outcome.kind) {
     case "gebucht":
       return "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
@@ -86,30 +185,114 @@ function farbeVon(outcome: ScanOutcome): string {
   }
 }
 
-function textVon(outcome: ScanOutcome, phase: MissionPhase): string {
+function textVon(anzeige: Anzeige, phase: MissionPhase): string {
+  if (anzeige.art === "vorgemerkt") {
+    return `${anzeige.code} vorgemerkt — wird nachgebucht, sobald wieder Netz da ist`;
+  }
+  const vorspann = anzeige.art === "nachgebucht" ? "Nachgebucht: " : "";
+  const outcome = anzeige.outcome;
   switch (outcome.kind) {
     case "gebucht":
       return outcome.anzahl > 1
-        ? `${outcome.name}: ${outcome.anzahl} Geräte ${MISSION_PHASES[phase].action}`
-        : `${outcome.name} ${MISSION_PHASES[phase].action}`;
+        ? `${vorspann}${outcome.name}: ${outcome.anzahl} Geräte ${MISSION_PHASES[phase].action}`
+        : `${vorspann}${outcome.name} ${MISSION_PHASES[phase].action}`;
     case "schon":
-      return `${outcome.name} war schon ${MISSION_PHASES[phase].action}`;
+      return `${vorspann}${outcome.name} war schon ${MISSION_PHASES[phase].action}`;
     case "fremd":
-      return `${outcome.name} gehört nicht zu diesem Einsatz`;
+      return `${vorspann}${outcome.name} gehört nicht zu diesem Einsatz`;
     case "unbekannt":
-      return `Unbekannter Code: ${outcome.code}`;
+      return `${vorspann}Unbekannter Code: ${outcome.code}`;
     case "fehler":
       return outcome.nachricht;
   }
 }
 
-export function EinsatzClient({ phase, eventId, eventName, erledigt, gesamt }: Props) {
+export function EinsatzClient({
+  missionId,
+  phase,
+  eventId,
+  eventName,
+  erledigt,
+  gesamt,
+}: Props) {
   const [stand, setStand] = useState({ erledigt, gesamt });
   const [eintraege, setEintraege] = useState<Eintrag[]>([]);
   const [manuell, setManuell] = useState("");
   const [, startTransition] = useTransition();
   const laufNr = useRef(0);
   const inArbeit = useRef(false);
+  const amNachbuchen = useRef(false);
+
+  const online = useOnline();
+  const wartend = useWartendeScans(missionId);
+
+  const protokolliere = useCallback((anzeige: Anzeige) => {
+    laufNr.current += 1;
+    setEintraege((bisher) =>
+      [
+        {
+          id: laufNr.current,
+          anzeige,
+          zeit: new Date().toLocaleTimeString("de-DE", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+        },
+        ...bisher,
+      ].slice(0, 12)
+    );
+  }, []);
+
+  // Reste vergangener Einsätze aufräumen. Verändert nur den Browser-Speicher,
+  // kein React-Zustand — genau das, wofür ein Effect gedacht ist.
+  useEffect(() => {
+    const entfernt = pruneOtherQueues(
+      window.localStorage,
+      missionId,
+      Object.keys(window.localStorage)
+    );
+    if (entfernt.length > 0) meldeQueueAenderung();
+  }, [missionId]);
+
+  /**
+   * Vorgemerkte Scans nachbuchen — in der Reihenfolge, in der gescannt wurde.
+   *
+   * Bricht beim ersten Fehlschlag ab und lässt den Rest stehen: Reißt die
+   * Verbindung mitten im Nachbuchen wieder ab, darf nichts verloren gehen.
+   *
+   * Das Nachbuchen ist gefahrlos, weil ein Scan nie rückwärts bucht. Ein
+   * Gerät, das inzwischen von jemand anderem gebucht wurde, meldet sich
+   * schlicht als „war schon".
+   */
+  const nachbuchen = useCallback(async () => {
+    if (amNachbuchen.current) return;
+    amNachbuchen.current = true;
+
+    try {
+      let rest = readQueue(window.localStorage, missionId);
+      while (rest.length > 0 && navigator.onLine) {
+        const naechster = rest[0]!;
+        try {
+          const antwort = await scanIntoMissionAction(naechster.code);
+          rest = dequeueScan(window.localStorage, missionId, naechster.id);
+          meldeQueueAenderung();
+          if (antwort.fortschritt) setStand(antwort.fortschritt);
+          protokolliere({ art: "nachgebucht", outcome: antwort.outcome });
+        } catch {
+          // Verbindung wieder weg — Rest bleibt stehen.
+          break;
+        }
+      }
+    } finally {
+      amNachbuchen.current = false;
+    }
+  }, [missionId, protokolliere]);
+
+  // Sobald wieder Netz da ist, nachbuchen.
+  useEffect(() => {
+    if (online) void nachbuchen();
+  }, [online, nachbuchen]);
 
   const verarbeite = useCallback(
     async (code: string) => {
@@ -118,33 +301,36 @@ export function EinsatzClient({ phase, eventId, eventName, erledigt, gesamt }: P
       if (inArbeit.current) return;
       inArbeit.current = true;
 
+      const vormerken = () => {
+        enqueueScan(window.localStorage, missionId, code, crypto.randomUUID(), Date.now());
+        meldeQueueAenderung();
+        // Eigener, tieferer Ton: Es ist etwas passiert, aber nicht gebucht.
+        tonAbspielen("schon");
+        vibrieren("schon");
+        protokolliere({ art: "vorgemerkt", code: code.trim() });
+      };
+
       try {
+        if (!navigator.onLine) {
+          vormerken();
+          return;
+        }
+
         const antwort = await scanIntoMissionAction(code);
         const art = artVon(antwort.outcome);
         tonAbspielen(art);
         vibrieren(art);
-
         if (antwort.fortschritt) setStand(antwort.fortschritt);
-        laufNr.current += 1;
-        setEintraege((bisher) =>
-          [
-            {
-              id: laufNr.current,
-              outcome: antwort.outcome,
-              zeit: new Date().toLocaleTimeString("de-DE", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              }),
-            },
-            ...bisher,
-          ].slice(0, 12)
-        );
+        protokolliere({ art: "server", outcome: antwort.outcome });
+      } catch {
+        // Die Verbindung ist während der Anfrage weggebrochen. Der Scan darf
+        // deswegen nicht verloren gehen.
+        vormerken();
       } finally {
         inArbeit.current = false;
       }
     },
-    []
+    [missionId, protokolliere]
   );
 
   const nachtragen = (deviceId: string) => {
@@ -152,21 +338,7 @@ export function EinsatzClient({ phase, eventId, eventName, erledigt, gesamt }: P
       const antwort = await addToMissionAction(deviceId);
       tonAbspielen("ok");
       if (antwort.fortschritt) setStand(antwort.fortschritt);
-      laufNr.current += 1;
-      setEintraege((bisher) =>
-        [
-          {
-            id: laufNr.current,
-            outcome: antwort.outcome,
-            zeit: new Date().toLocaleTimeString("de-DE", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            }),
-          },
-          ...bisher,
-        ].slice(0, 12)
-      );
+      protokolliere({ art: "server", outcome: antwort.outcome });
     });
   };
 
@@ -208,6 +380,45 @@ export function EinsatzClient({ phase, eventId, eventName, erledigt, gesamt }: P
           </p>
         )}
       </div>
+
+      {/* Verbindungszustand — ohne diesen Streifen glaubt man, gebucht zu haben,
+          während die Scans nur vorgemerkt sind. */}
+      {(!online || wartend.length > 0) && (
+        <div
+          className={`card flex items-start gap-3 ${
+            online
+              ? "border-sky-500/40 bg-sky-500/10"
+              : "border-amber-500/40 bg-amber-500/10"
+          }`}
+          role="status"
+        >
+          <span className="text-xl leading-none shrink-0" aria-hidden="true">
+            {online ? "↻" : "⚡"}
+          </span>
+          <div className="text-sm">
+            {online ? (
+              <>
+                <p className="font-semibold text-sky-300">
+                  {wartend.length}{" "}
+                  {wartend.length === 1 ? "Scan wird" : "Scans werden"} nachgebucht …
+                </p>
+                <p className="text-muted">Die Seite bitte offen lassen.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-amber-300">Kein Netz — Scans werden vorgemerkt</p>
+                <p className="text-amber-200/80">
+                  {wartend.length === 0
+                    ? "Weiterscannen geht. Gebucht wird, sobald wieder Verbindung besteht."
+                    : `${wartend.length} ${
+                        wartend.length === 1 ? "Scan wartet" : "Scans warten"
+                      } auf die Buchung. Ohne Netz lässt sich nicht prüfen, ob die Geräte zur Packliste gehören — das entscheidet sich beim Nachbuchen.`}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Dauer-Scan */}
       <div className="flex flex-col gap-2">
@@ -260,15 +471,20 @@ export function EinsatzClient({ phase, eventId, eventName, erledigt, gesamt }: P
             {eintraege.map((e) => (
               <li
                 key={e.id}
-                className={`rounded-xl border px-3 py-2.5 text-sm flex items-start justify-between gap-3 ${farbeVon(e.outcome)}`}
+                className={`rounded-xl border px-3 py-2.5 text-sm flex items-start justify-between gap-3 ${farbeVon(e.anzeige)}`}
               >
-                <span>{textVon(e.outcome, phase)}</span>
+                <span>{textVon(e.anzeige, phase)}</span>
                 <span className="flex items-center gap-2 shrink-0">
-                  {e.outcome.kind === "fremd" && (
+                  {e.anzeige.art !== "vorgemerkt" && e.anzeige.outcome.kind === "fremd" && (
                     <button
                       type="button"
                       className="underline whitespace-nowrap"
-                      onClick={() => nachtragen(e.outcome.kind === "fremd" ? e.outcome.deviceId : "")}
+                      onClick={() => {
+                        const a = e.anzeige;
+                        if (a.art !== "vorgemerkt" && a.outcome.kind === "fremd") {
+                          nachtragen(a.outcome.deviceId);
+                        }
+                      }}
                     >
                       aufnehmen
                     </button>

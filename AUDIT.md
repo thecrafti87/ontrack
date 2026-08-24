@@ -285,11 +285,33 @@ Event für Event beantworten.
 Handy eine Tagesliste. Geladen wird alles, was den sichtbaren Zeitraum
 berührt, auch hineinragende Veranstaltungen.
 
-### C4 · Ohne Empfang steht alles
+### C4 · Ohne Empfang steht alles — Kern behoben (24.08.2026)
 
 Im Hallenkeller oder hinter der Bühne funktioniert der Scan-Ablauf nicht — und
 genau dort wird er gebraucht. Das ist die größte Lücke gegenüber dem eigenen
 Anspruch, aber auch die teuerste.
+
+**Umgesetzt — der Scan-Ablauf läuft ohne Netz weiter:** Bricht die Verbindung
+weg, werden Scans im Einsatzmodus vorgemerkt statt verworfen und automatisch
+nachgebucht, sobald wieder Netz da ist. Vorgemerkt ist dabei ein eigener,
+sichtbarer Zustand und nicht als Erfolg getarnt: Der Fortschrittsbalken
+bewegt sich nicht, und der Verlauf sagt „vorgemerkt", nicht „gebucht". Ohne
+Netz lässt sich nämlich nicht prüfen, ob ein Gerät überhaupt zur Packliste
+gehört — das entscheidet erst der Server.
+
+Das Nachbuchen ist gefahrlos, weil ein Scan nie rückwärts bucht (siehe
+Stufe 2). Ein Gerät, das inzwischen jemand anderes gebucht hat, meldet sich
+beim Nachbuchen schlicht als „war schon".
+
+**Ausserdem ein Service Worker**, damit sich die App auch öffnen lässt, wenn
+kein Netz da ist. Bewusst sehr zurückhaltend: Seiten und Daten kommen immer
+zuerst aus dem Netz, zwischengespeichert werden nur unveränderliche Dateien.
+Ein Service Worker, der Bestandsseiten zwischenspeichert, wäre schlimmer als
+keiner — man würde einem Gerätestatus vertrauen, den es nicht mehr gibt.
+
+**Was weiterhin fehlt:** Ohne Netz lässt sich die Packliste nicht einsehen und
+kein Gerät nachschlagen; Fotos und Defektmeldungen brauchen ebenfalls
+Verbindung. Der Scan-Ablauf — der Grund, warum man im Keller steht — läuft.
 
 ### C5 · Karte fehlt trotz Zusage im Konzept
 
