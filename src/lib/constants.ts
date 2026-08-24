@@ -118,6 +118,27 @@ export function hasReachedPhase(itemStatus: string, phase: MissionPhase): boolea
   return eventItemStatusRank(itemStatus) >= eventItemStatusRank(phase);
 }
 
+/**
+ * Warum sich ein Bestand geändert hat.
+ *
+ * Der Bestand wird nie direkt gesetzt, sondern ergibt sich aus Bewegungen —
+ * nur so lässt sich später beantworten, wohin die 40 Kabel gegangen sind.
+ */
+export const BULK_REASONS = {
+  ENTNAHME: { label: "Entnahme", richtung: -1 as const },
+  RUECKGABE: { label: "Rückgabe", richtung: 1 as const },
+  ZUGANG: { label: "Zugang (neu beschafft)", richtung: 1 as const },
+  KORREKTUR: { label: "Korrektur (Inventur)", richtung: 0 as const },
+} as const;
+export type BulkReason = keyof typeof BULK_REASONS;
+
+export function isBulkReason(value: string): value is BulkReason {
+  return value in BULK_REASONS;
+}
+
+/** Übliche Einheiten für Mengenartikel. */
+export const BULK_UNITS = ["Stück", "m", "Rolle", "Paar", "Satz", "kg", "l"] as const;
+
 export const ROLES = {
   ADMIN: { label: "Admin" },
   TECHNIKER: { label: "Techniker" },

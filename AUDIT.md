@@ -243,24 +243,47 @@ Das Entsperren bleibt Handarbeit an einer anderen Stelle.
 
 ## C — Fachliche Lücken
 
-### C1 · Kabel und Kleinteile lassen sich nicht führen
+### C1 · Kabel und Kleinteile lassen sich nicht führen — behoben (24.08.2026)
 
 Jedes Objekt braucht eine eigene Inventarnummer mit eigenem QR-Code. Für 200
 DMX-Kabel, Schellen, Klemmen oder Gaffa ist das unbrauchbar — und genau diese Dinge
 gehen verloren. Mengenartikel mit Stückzahl statt Einzelnummer stehen seit V1 auf
 der Roadmap.
 
-### C2 · Gewicht und Stromlast werden erfasst, aber nicht genutzt
+**Umgesetzt:** Eigener Bereich unter „Bestand → Mengenartikel". Bestand,
+Einheit, Warnschwelle, Standort; Entnahme, Rückgabe, Zugang und
+Inventurkorrektur, jeweils mit Notiz und optionaler Zuordnung zu einer
+Veranstaltung. Der Bestand wird **nie direkt gesetzt**, sondern ergibt sich
+aus den Bewegungen — nur so lässt sich beantworten, wohin die 40 Kabel
+gegangen sind. Knappe und leere Bestände stehen oben auf der Liste.
+
+**Bewusst offen:** Mengenartikel erscheinen **nicht** in der Packliste, nicht
+im Einsatzmodus und nicht in den Gewichts-/Stromsummen. Diese drei bauen auf
+Gerät-je-Datensatz auf; sie mit Stückzahlen zu verschränken ist ein eigener
+Umbau. Die Zuordnung „entnommen für Veranstaltung X" bildet den Zusammenhang
+vorerst ab.
+
+### C2 · Gewicht und Stromlast werden erfasst, aber nicht genutzt — behoben (24.08.2026)
 
 Das Gewichtsfeld pflegst du, Leistung steckt im Feldkatalog. Summiert ergäben sie
 Ladungsplanung für den LKW und eine Warnung, bevor eine Zuleitung überlastet wird.
 Die Daten liegen ungenutzt herum — fachlich das Eigenständigste, was die App
 kurzfristig gewinnen könnte.
 
-### C3 · Kein Blick auf die Zeitachse
+**Umgesetzt:** Event- und Case-Seite zeigen Gesamtgewicht und
+Anschlussleistung, dazu die grobe Stromaufnahme bei 230 V und die Zahl nötiger
+16-A-Kreise. Eine unvollständige Summe trägt ein „≥", und die Zahl der Geräte
+ohne Angabe steht gleichberechtigt daneben — sonst plant jemand ein Fahrzeug
+nach einer Zahl, die die Hälfte verschweigt.
+
+### C3 · Kein Blick auf die Zeitachse — behoben (24.08.2026)
 
 Es gibt keine Kalenderansicht. „Was ist wann wo im Einsatz" lässt sich nur
 Event für Event beantworten.
+
+**Umgesetzt:** Monatsansicht unter „Kalender" — am Desktop ein Raster, auf dem
+Handy eine Tagesliste. Geladen wird alles, was den sichtbaren Zeitraum
+berührt, auch hineinragende Veranstaltungen.
 
 ### C4 · Ohne Empfang steht alles
 
@@ -358,14 +381,20 @@ war erreichbar statt unerreichbar (B3), und die Überlappung war ein
 Entwicklungsartefakt (B3). Alle drei stammten aus Bildschirmfotos und
 Codelektüre ohne Messung. Was gemessen wurde, hielt.
 
-### Stufe 4 — Fachlich stärker
+### Stufe 4 — Fachlich stärker — abgeschlossen 24.08.2026
 
-| Was | Aufwand |
+| Was | Stand |
 |---|---|
-| Mengenartikel mit Entnahme und Rückgabe (C1) | ~3 Tage |
-| Gewicht- und Stromlast-Summen je Event und Case (C2) | ~1,5 Tage |
-| Serien-Anlage: acht gleiche Geräte in einem Zug (C6) | ~0,5 Tage |
-| Kalenderansicht (C3) | ~1,5 Tage |
+| Mengenartikel mit Entnahme und Rückgabe (C1) | ✅ erledigt, ohne Packlisten-Anbindung |
+| Gewicht- und Stromlast-Summen je Event und Case (C2) | ✅ erledigt |
+| Serien-Anlage: acht gleiche Geräte in einem Zug (C6) | ✅ erledigt |
+| Kalenderansicht (C3) | ✅ erledigt |
+
+**Die eine Einschränkung:** Mengenartikel sind ein eigener Bereich und
+erscheinen nicht in der Packliste, nicht im Einsatzmodus und nicht in den
+Gewichts- und Stromsummen. Alle drei bauen auf „ein Datensatz je Gerät" auf;
+sie mit Stückzahlen zu verschränken wäre ein eigener Umbau und gehört
+entschieden, nicht nebenbei gemacht.
 
 ### Stufe 5 — Ausbau
 

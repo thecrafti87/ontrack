@@ -6,6 +6,7 @@ import { FeedbackButton } from "@/components/FeedbackButton";
 import {
   BoxIcon,
   CalendarIcon,
+  StackIcon,
   MapPinIcon,
   WrenchIcon,
   TagIcon,
@@ -55,6 +56,7 @@ export default async function MehrPage() {
       <div className="mt-4 mb-1 text-sm font-semibold text-muted uppercase tracking-wide">
         Bestand
       </div>
+      <NavRow href="/mengenartikel" icon={<StackIcon />} label="Mengenartikel" />
       <NavRow href="/cases" icon={<BoxIcon />} label="Cases" />
       <NavRow href="/standorte" icon={<MapPinIcon />} label="Standorte" />
       <NavRow href="/wartung" icon={<WrenchIcon />} label="Wartung" />

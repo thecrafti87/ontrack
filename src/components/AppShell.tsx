@@ -39,6 +39,7 @@ const PRIMARY_NAV: NavItem[] = [
 
 /** Alles rund um den Bestand — regelmäßig, aber nicht ständig. */
 const BESTAND_NAV: NavItem[] = [
+  { href: "/mengenartikel", label: "Mengenartikel" },
   { href: "/cases", label: "Cases" },
   { href: "/standorte", label: "Standorte" },
   { href: "/wartung", label: "Wartung" },

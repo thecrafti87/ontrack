@@ -25,6 +25,7 @@ model User {
   feedbacks          Feedback[]
   maintenanceRecords MaintenanceRecord[]
   mission            ActiveMission?
+  bulkMovements      BulkMovement[]
 }
 
 model Session {
@@ -45,8 +46,9 @@ model Location {
   lat         Float?
   lng         Float?
 
-  devices Device[]
-  cases   Case[]
+  devices   Device[]
+  cases     Case[]
+  bulkItems BulkItem[]
 }
 
 // ── Geräte & Cases ──────────────────────────────────────────────────
@@ -117,6 +119,7 @@ model Event {
   logs        ActivityLog[]
   rigFixtures RigFixture[]
   missions    ActiveMission[]
+  bulkMovements BulkMovement[]
 }
 
 model EventItem {
@@ -332,4 +335,60 @@ model ActiveMission {
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+// ── Mengenartikel ───────────────────────────────────────────────────
+
+/**
+ * Verbrauchs- und Kleinteile, die nach Stückzahl geführt werden.
+ *
+ * Kabel, Schellen, Klemmen, Gaffa: Ein eigener QR-Code je Stück wäre
+ * unbrauchbar, und genau diese Dinge gehen verloren. Statt einzelner
+ * Datensätze gibt es einen Bestand mit Bewegungen.
+ */
+model BulkItem {
+  id          String   @id @default(cuid())
+  name        String
+  category    String?
+  /** Einheit der Zählung: Stück, m, Rolle, Paar … */
+  unit        String   @default("Stück")
+  /** Aktueller Bestand. Wird nur über Bewegungen verändert. */
+  quantity    Int      @default(0)
+  /** Ab diesem Bestand wird gewarnt; null = keine Warnung. */
+  minQuantity Int?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  movements BulkMovement[]
+
+  @@unique([name, locationId])
+}
+
+/**
+ * Jede Änderung am Bestand — Entnahme, Rückgabe, Zugang oder Korrektur.
+ *
+ * Der Bestand wird nie direkt gesetzt, sondern ergibt sich aus den
+ * Bewegungen. Nur so lässt sich später beantworten, wohin die 40 Kabel
+ * gegangen sind.
+ */
+model BulkMovement {
+  id        String   @id @default(cuid())
+  itemId    String
+  /** Negativ = Entnahme, positiv = Rückgabe oder Zugang. */
+  delta     Int
+  /** ENTNAHME | RUECKGABE | ZUGANG | KORREKTUR */
+  reason    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  userId  String
+  eventId String?
+
+  item  BulkItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user  User     @relation(fields: [userId], references: [id])
+  event Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
 }

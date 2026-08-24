@@ -14,6 +14,15 @@ const ICON_PROPS = {
   className: "size-6 shrink-0",
 };
 
+export function StackIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M4 8h16M4 12h16M4 16h16" />
+      <path d="M4 8v8M20 8v8" />
+    </svg>
+  );
+}
+
 export function CalendarIcon() {
   return (
     <svg {...ICON_PROPS}>
