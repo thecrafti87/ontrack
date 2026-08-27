@@ -45,3 +45,49 @@ export function getMaintenanceUrgency(dueDate: Date | null, now: Date = new Date
   if (dueDate.getTime() <= in30Days.getTime()) return "soon";
   return "later";
 }
+
+// ── Prüfnachweise ────────────────────────────────────────────────────
+
+import { MAINTENANCE_RESULT, type MaintenanceResult } from "./constants";
+
+export type PruefnachweisEingabe = {
+  inventoryNo: string;
+  deviceName: string;
+  title: string;
+  intervalMonths: number;
+  performedAt: Date;
+  result: string;
+  testerName: string | null;
+  recordedBy: string;
+  notes: string | null;
+  documentCount: number;
+};
+
+export type PruefnachweisZeile = PruefnachweisEingabe & {
+  /** Fälligkeit, die sich aus genau dieser Prüfung ergibt. */
+  nextDue: Date | null;
+};
+
+/**
+ * Prüfungen für den Nachweis aufbereiten: nach Gerät sortiert, innerhalb
+ * eines Geräts die neueste zuerst.
+ *
+ * Die Fälligkeit wird je Eintrag berechnet und nicht vom Plan übernommen —
+ * ein Nachweis soll zeigen, was die einzelne Prüfung ergeben hat, auch wenn
+ * inzwischen weitere folgten. Eine nicht bestandene Prüfung setzt die Frist
+ * nicht zurück; sie bekommt deshalb kein Datum, statt eines zu erfinden.
+ */
+export function pruefnachweise(eintraege: PruefnachweisEingabe[]): PruefnachweisZeile[] {
+  return [...eintraege]
+    .sort((a, b) => {
+      const geraet = a.inventoryNo.localeCompare(b.inventoryNo, "de");
+      if (geraet !== 0) return geraet;
+      return b.performedAt.getTime() - a.performedAt.getTime();
+    })
+    .map((eintrag) => ({
+      ...eintrag,
+      nextDue: MAINTENANCE_RESULT[eintrag.result as MaintenanceResult]?.resetsInterval
+        ? addMonths(eintrag.performedAt, eintrag.intervalMonths)
+        : null,
+    }));
+}

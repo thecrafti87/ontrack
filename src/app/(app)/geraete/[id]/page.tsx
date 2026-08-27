@@ -439,7 +439,20 @@ export default async function DeviceDetailPage({
 
       {/* Wartung */}
       <div className="card flex flex-col gap-4">
-        <h2 className="font-semibold">Wartung</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold">Wartung</h2>
+          {/* Nur zeigen, wenn es auch etwas nachzuweisen gibt. */}
+          {maintenancePlans.some((plan) => plan.records.length > 0) && (
+            <a
+              href={`/api/export/pruefnachweise?geraet=${device.id}`}
+              className="text-sm text-accent underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Prüfnachweis (PDF)
+            </a>
+          )}
+        </div>
 
         {maintenancePlans.length === 0 ? (
           <p className="text-muted text-sm">Noch keine Wartungspläne.</p>

@@ -3,6 +3,7 @@ import {
   addMonths,
   getMaintenanceDueDate,
   getMaintenanceUrgency,
+  pruefnachweise,
 } from "@/lib/maintenance";
 import { MAINTENANCE_RESULT, isMaintenanceResult } from "@/lib/constants";
 
@@ -87,5 +88,72 @@ describe("Prüfergebnisse", () => {
   it("weist unbekannte Ergebniswerte ab", () => {
     expect(isMaintenanceResult("BESTANDEN")).toBe(true);
     expect(isMaintenanceResult("VIELLEICHT")).toBe(false);
+  });
+});
+
+describe("Prüfnachweise aufbereiten", () => {
+  function pruefung(
+    inventoryNo: string,
+    performedAt: string,
+    result: string,
+    intervalMonths = 12
+  ) {
+    return {
+      inventoryNo,
+      deviceName: `Gerät ${inventoryNo}`,
+      title: "DGUV V3",
+      intervalMonths,
+      performedAt: new Date(performedAt),
+      result,
+      testerName: null,
+      recordedBy: "Benni",
+      notes: null,
+      documentCount: 0,
+    };
+  }
+
+  it("sortiert nach Gerät, innerhalb des Geräts neueste zuerst", () => {
+    const zeilen = pruefnachweise([
+      pruefung("OT-0002", "2025-01-01", "BESTANDEN"),
+      pruefung("OT-0001", "2024-01-01", "BESTANDEN"),
+      pruefung("OT-0001", "2026-01-01", "BESTANDEN"),
+    ]);
+
+    expect(zeilen.map((z) => `${z.inventoryNo}/${z.performedAt.getFullYear()}`)).toEqual([
+      "OT-0001/2026",
+      "OT-0001/2024",
+      "OT-0002/2025",
+    ]);
+  });
+
+  it("rechnet die Fälligkeit aus der jeweiligen Prüfung, nicht aus der letzten", () => {
+    // Sonst stünde an einer alten Prüfung ein Datum, das zu ihr nicht passt.
+    const [neuer, aelter] = pruefnachweise([
+      pruefung("OT-0001", "2024-03-15", "BESTANDEN"),
+      pruefung("OT-0001", "2026-03-15", "BESTANDEN"),
+    ]);
+
+    expect(neuer.nextDue?.getFullYear()).toBe(2027);
+    expect(aelter.nextDue?.getFullYear()).toBe(2025);
+  });
+
+  it("gibt einer nicht bestandenen Prüfung keine Fälligkeit", () => {
+    // Das Gerät bleibt fällig, bis es besteht — ein Datum wäre hier gelogen.
+    const [zeile] = pruefnachweise([pruefung("OT-0001", "2026-03-15", "DURCHGEFALLEN")]);
+    expect(zeile.nextDue).toBeNull();
+  });
+
+  it("behandelt Mängel wie bestanden, weil die Frist dort weiterläuft", () => {
+    const [zeile] = pruefnachweise([pruefung("OT-0001", "2026-03-15", "MAENGEL")]);
+    expect(zeile.nextDue).not.toBeNull();
+  });
+
+  it("lässt die übergebene Liste unverändert", () => {
+    const eingabe = [
+      pruefung("OT-0002", "2025-01-01", "BESTANDEN"),
+      pruefung("OT-0001", "2024-01-01", "BESTANDEN"),
+    ];
+    pruefnachweise(eingabe);
+    expect(eingabe[0].inventoryNo).toBe("OT-0002");
   });
 });

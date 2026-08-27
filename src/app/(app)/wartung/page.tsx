@@ -112,7 +112,26 @@ export default async function WartungPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Wartung</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-2xl font-bold">Wartung</h1>
+        {/* Für die Berufsgenossenschaft, die Versicherung oder eine Übergabe
+            zählt nicht die Fälligkeitsliste, sondern der Nachweis. */}
+        <p className="text-sm text-muted">
+          Prüfnachweise:{" "}
+          <a
+            href="/api/export/pruefnachweise?format=pdf"
+            className="text-accent underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            PDF
+          </a>{" "}
+          ·{" "}
+          <a href="/api/export/pruefnachweise?format=csv" className="text-accent underline">
+            CSV
+          </a>
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <a href="#ueberfaellig" className="card flex flex-col gap-1 hover:bg-surface-2 transition-colors">
