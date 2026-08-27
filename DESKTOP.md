@@ -97,11 +97,18 @@ alte installieren; nötige Datenbank-Anpassungen laufen beim Start automatisch.
 ## Sicherung
 
 **Datei → Datenbank sichern …** legt eine Kopie der Datenbank ab, wo du
-möchtest. Für eine vollständige Sicherung zusätzlich den Ordner `uploads/`
-kopieren.
+möchtest. Das geschieht im laufenden Betrieb und ergibt trotzdem einen in sich
+stimmigen Stand. Für eine vollständige Sicherung zusätzlich den Ordner
+`uploads/` kopieren.
 
-Es gibt keine automatische Sicherung. Bei ernsthafter Nutzung: regelmäßig
-sichern.
+Zurückspielen: App beenden, die gesicherte Datei über
+`…/OnTrack/data/db/ontrack.db` kopieren, App starten. Nötige
+Datenbank-Anpassungen laufen dabei automatisch, ein älterer Stand wird also
+mitgezogen.
+
+**Es gibt keine automatische Sicherung** — anders als im Server-Betrieb, wo
+täglich von allein gesichert wird (siehe [README.md](README.md)). Bei
+ernsthafter Nutzung auf dem Desktop: regelmäßig selbst sichern.
 
 ## Für andere Geräte freigeben
 

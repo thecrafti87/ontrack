@@ -55,6 +55,41 @@ function writeSettings(patch) {
   return merged;
 }
 
+/**
+ * Datenbank sichern.
+ *
+ * `VACUUM INTO` lässt SQLite selbst einen in sich stimmigen Stand
+ * herausschreiben, auch während der Server läuft. Eine gewöhnliche Dateikopie
+ * kann mitten in einer Schreibaktion entstehen — und das merkt man erst, wenn
+ * man die Sicherung braucht.
+ *
+ * Der Prisma-Client liegt beim Server unter resources/, nicht im asar-Archiv.
+ * Lässt er sich hier nicht laden, wird kopiert wie bisher und im Dialog
+ * gesagt, dass die App dafür besser beendet wird. Lieber eine Sicherung mit
+ * Hinweis als gar keine.
+ *
+ * @returns "vacuum" oder "kopie" — was tatsächlich gemacht wurde.
+ */
+async function sichereDatenbank(zielPfad) {
+  try {
+    const { PrismaClient } = require(path.join(serverDir, "node_modules", "@prisma", "client"));
+    const prisma = new PrismaClient({ datasources: { db: { url: `file:${dbFile}` } } });
+    try {
+      // VACUUM INTO überschreibt nichts — der Dateidialog fragt aber bereits
+      // nach, also ist eine vorhandene Datei hier gewollt.
+      fs.rmSync(zielPfad, { force: true });
+      await prisma.$executeRawUnsafe(`VACUUM INTO '${zielPfad.replace(/'/g, "''")}'`);
+      return "vacuum";
+    } finally {
+      await prisma.$disconnect();
+    }
+  } catch (error) {
+    console.warn("[backup] VACUUM INTO nicht möglich, kopiere stattdessen:", error?.message);
+    fs.copyFileSync(dbFile, zielPfad);
+    return "kopie";
+  }
+}
+
 /** Standardmäßig hört der Server nur auf diesem Rechner. */
 function shareOnNetwork() {
   return readSettings().shareOnNetwork === true;
@@ -249,11 +284,15 @@ function buildMenu() {
             });
             if (canceled || !filePath) return;
             try {
-              fs.copyFileSync(dbFile, filePath);
+              const art = await sichereDatenbank(filePath);
               dialog.showMessageBox({
                 type: "info",
                 message: "Sicherung erstellt",
-                detail: filePath,
+                detail:
+                  art === "vacuum"
+                    ? filePath
+                    : `${filePath}\n\nHinweis: Es wurde eine einfache Dateikopie angelegt. ` +
+                      `Die App am besten vorher beenden, damit der Stand sicher vollständig ist.`,
               });
             } catch (error) {
               dialog.showErrorBox("Sicherung fehlgeschlagen", String(error));

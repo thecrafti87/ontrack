@@ -63,13 +63,57 @@ _bevor_ Etiketten gedruckt werden — sonst zeigen die QR-Codes auf localhost.
 
 ## Backup
 
-Die gesamte Datenbank ist eine Datei. Sichern:
+**Im Docker-Betrieb läuft die Sicherung von allein mit.** `docker compose up -d`
+startet neben der App einen zweiten Dienst, der täglich einen Stand ablegt und
+die letzten 14 aufhebt. Kein Zeitplan, an den jemand denken muss.
+
+Was gesichert wird: die Datenbank (per `VACUUM INTO`, also ein in sich
+stimmiger Stand auch bei laufendem Betrieb — eine gewöhnliche Dateikopie kann
+mitten in einer Schreibaktion entstehen) und die hochgeladenen Fotos.
+
+Einstellen lässt sich das über zwei Umgebungsvariablen:
+
+| Variable | Standard | Bedeutung |
+| --- | --- | --- |
+| `ONTRACK_BACKUP_KEEP` | `14` | Wie viele Stände aufgehoben werden |
+| `ONTRACK_BACKUP_INTERVAL` | `86400` | Sekunden zwischen zwei Läufen |
+
+Sofort einen Stand ziehen:
 
 ```bash
-docker run --rm -v ontrack_ontrack-db:/db -v "$PWD":/backup alpine cp /db/ontrack.db /backup/ontrack-backup.db
+docker compose exec backup node scripts/backup.mjs
 ```
 
-Uploads analog aus dem Volume `ontrack_ontrack-uploads`.
+Die Stände liegen im Volume `ontrack_ontrack-backups`. Herausholen:
+
+```bash
+docker run --rm -v ontrack_ontrack-backups:/b -v "$PWD":/ziel alpine sh -c "cp -r /b/. /ziel/ontrack-sicherung/"
+```
+
+Ohne den Sicherungsdienst starten: `docker compose up -d ontrack`.
+
+### Wiederherstellen
+
+Eine Sicherung, die noch nie zurückgespielt wurde, ist eine Vermutung. Der Weg
+(App vorher anhalten, sonst schreibt sie in die Datei, die gerade ersetzt wird):
+
+```bash
+docker compose stop ontrack
+docker run --rm -v ontrack_ontrack-backups:/b -v ontrack_ontrack-db:/db alpine sh -c "cp /b/ontrack-<ZEITSTEMPEL>.db /db/ontrack.db"
+docker compose start ontrack
+```
+
+Fotos analog aus `/b/uploads/` nach `ontrack_ontrack-uploads`. Migrationen
+laufen beim Start automatisch, ein älterer Stand wird also mitgezogen.
+
+**Ohne Docker** (lokal oder auf einem eigenen Server):
+
+```bash
+npm run backup
+```
+
+Zielordner und Anzahl über `--ziel` und `--behalten` bzw. die gleichnamigen
+Umgebungsvariablen.
 
 ## Technik
 

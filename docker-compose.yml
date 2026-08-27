@@ -9,6 +9,31 @@ services:
       - ontrack-db:/app/prisma/data
       - ontrack-uploads:/app/data/uploads
 
+  # Sicherung im laufenden Betrieb. Läuft mit, ohne dass jemand daran denken
+  # muss — eine Sicherung, die man von Hand anstoßen muss, ist im Ernstfall
+  # die, die niemand gemacht hat.
+  #
+  # Nutzt dasselbe Abbild wie die App und damit dieselbe DATABASE_URL.
+  # Abschalten: `docker compose up -d ontrack` startet nur die App.
+  backup:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - ontrack
+    environment:
+      # Wie viele Stände aufgehoben werden.
+      ONTRACK_BACKUP_KEEP: "${ONTRACK_BACKUP_KEEP:-14}"
+      # Abstand zwischen zwei Läufen in Sekunden (Standard: täglich).
+      ONTRACK_BACKUP_INTERVAL: "${ONTRACK_BACKUP_INTERVAL:-86400}"
+    volumes:
+      - ontrack-db:/app/prisma/data
+      - ontrack-uploads:/app/data/uploads
+      - ontrack-backups:/app/data/backups
+    # Die Schleife steht in scripts/backup-loop.sh — dort ist sie gewöhnliche
+    # Shell und muss nicht gegen Compose-Ersetzung verteidigt werden.
+    command: ["sh", "scripts/backup-loop.sh"]
+
 volumes:
   ontrack-db:
   ontrack-uploads:
+  ontrack-backups:
