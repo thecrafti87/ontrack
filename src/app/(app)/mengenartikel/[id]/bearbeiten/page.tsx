@@ -29,7 +29,7 @@ export default async function BearbeitenPage({ params }: { params: Promise<{ id:
       <h1 className="text-2xl font-bold">{item.name} bearbeiten</h1>
       <p className="text-sm text-muted">
         Der Bestand lässt sich hier nicht ändern — er ergibt sich aus den Bewegungen.
-        Für eine Inventur den Vorgang „Korrektur" auf der Artikelseite nutzen.
+        Für eine Inventur den Vorgang „Korrektur“ auf der Artikelseite nutzen.
       </p>
       <BulkItemForm
         mode="edit"
@@ -41,6 +41,7 @@ export default async function BearbeitenPage({ params }: { params: Promise<{ id:
           category: item.category,
           unit: item.unit,
           minQuantity: item.minQuantity,
+          weightKg: item.weightKg,
           notes: item.notes,
           locationId: item.locationId,
         }}

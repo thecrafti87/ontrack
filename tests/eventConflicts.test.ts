@@ -50,7 +50,19 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma?.$disconnect();
-  fs.rmSync(DB_DATEI, { force: true });
+
+  // Windows gibt die Datei erst frei, wenn der Query-Engine-Prozess wirklich
+  // beendet ist — direkt nach $disconnect wirft rmSync sonst EPERM und lässt
+  // die ganze Suite scheitern, obwohl jeder Test bestanden hat.
+  for (let versuch = 0; versuch < 20; versuch++) {
+    try {
+      fs.rmSync(DB_DATEI, { force: true });
+      return;
+    } catch {
+      await new Promise((fertig) => setTimeout(fertig, 50));
+    }
+  }
+  // Aufgeben ist vertretbar: Die Datei liegt im Temp-Verzeichnis.
 });
 
 describe("Doppelbuchung von Geräten", () => {
