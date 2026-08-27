@@ -68,6 +68,20 @@ describe("Selbstupdate: Veröffentlichungsort", () => {
     expect(builderYml).toMatch(/releaseType:\s*release/);
   });
 
+  it("vergibt Dateinamen ohne Leerzeichen", () => {
+    // Der teuerste Fehler in dieser Kette: electron-builder nennt den
+    // Windows-Installer standardmässig "OnTrack Setup 1.2.0.exe". GitHub
+    // ersetzt Leerzeichen beim Hochladen durch Punkte, latest.yml durch
+    // Bindestriche — drei Namen für dieselbe Datei, und das Selbstupdate
+    // läuft in einen 404. Sichtbar wird das erst, wenn jemand vergeblich
+    // auf ein Update wartet.
+    const nsis = builderYml.split(/^nsis:/m)[1] ?? "";
+    const name = nsis.match(/^\s*artifactName:\s*(\S.*)$/m)?.[1]?.trim();
+
+    expect(name, "nsis.artifactName fehlt in electron-builder.yml").toBeTruthy();
+    expect(name, `artifactName darf kein Leerzeichen enthalten: ${name}`).not.toMatch(/ /);
+  });
+
   it("trägt das repository-Feld, das das Packen übersteht", () => {
     // electron-builder streift build, scripts und devDependencies aus der
     // package.json im asar. `repository` bleibt — deshalb ist es der

@@ -7,7 +7,7 @@ neuere gibt.
 | --- | --- |
 | macOS (Apple Silicon) | `OnTrack-1.2.0-arm64.dmg` |
 | macOS (Intel) | `OnTrack-1.2.0.dmg` |
-| Windows 10/11 | `OnTrack.Setup.1.2.0.exe` |
+| Windows 10/11 | `OnTrack-Setup-1.2.0.exe` |
 | Linux (universell) | `OnTrack-1.2.0.AppImage` |
 | Debian / Ubuntu | `ontrack_1.2.0_amd64.deb` |
 

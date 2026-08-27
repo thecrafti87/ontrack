@@ -17,7 +17,7 @@ Alle Dateien liegen unter **[Releases](https://github.com/thecrafti87/ontrack/re
 | --- | --- | --- |
 | macOS (Apple Silicon, M1–M4) | `OnTrack-<Version>-arm64.dmg` | Standard für alle Macs ab 2020 |
 | macOS (Intel) | `OnTrack-<Version>.dmg` | für ältere Macs |
-| Windows 10/11 (64-Bit) | `OnTrack.Setup.<Version>.exe` | |
+| Windows 10/11 (64-Bit) | `OnTrack-Setup-<Version>.exe` | |
 | Linux (universell) | `OnTrack-<Version>.AppImage` | läuft ohne Installation |
 | Debian / Ubuntu / Mint | `ontrack_<Version>_amd64.deb` | |
 

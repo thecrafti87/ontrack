@@ -82,6 +82,13 @@ win:
       arch: [x64]
 
 nsis:
+  # Ohne diese Zeile heisst die Datei "OnTrack Setup 1.2.0.exe" — mit
+  # Leerzeichen. GitHub ersetzt die beim Hochladen durch Punkte
+  # ("OnTrack.Setup.1.2.0.exe"), waehrend latest.yml sie durch Bindestriche
+  # ersetzt ("OnTrack-Setup-1.2.0.exe"). Drei Namen fuer dieselbe Datei, und
+  # das Selbstupdate laeuft unter Windows in einen 404. Mit festem Namen ohne
+  # Leerzeichen heisst sie ueberall gleich.
+  artifactName: ${productName}-Setup-${version}.${ext}
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
