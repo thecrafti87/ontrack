@@ -16,6 +16,13 @@ function parseOptionalInt(value: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+/** Gewichte sind selten ganze Kilogramm — ein DMX-Kabel wiegt 0,4. */
+function parseOptionalFloat(value: FormDataEntryValue | null): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(String(value).replace(",", "."));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 export async function createBulkItemAction(
   _prevState: ActionState,
   formData: FormData
@@ -27,6 +34,7 @@ export async function createBulkItemAction(
   const category = String(formData.get("category") ?? "").trim() || null;
   const unit = String(formData.get("unit") ?? "Stück").trim() || "Stück";
   const minQuantity = parseOptionalInt(formData.get("minQuantity"));
+  const weightKg = parseOptionalFloat(formData.get("weightKg"));
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const locationId = String(formData.get("locationId") ?? "") || null;
   const startbestand = parseOptionalInt(formData.get("quantity")) ?? 0;
@@ -42,7 +50,7 @@ export async function createBulkItemAction(
 
   const item = await prisma.$transaction(async (tx) => {
     const angelegt = await tx.bulkItem.create({
-      data: { name, category, unit, minQuantity, notes, locationId, quantity: 0 },
+      data: { name, category, unit, minQuantity, weightKg, notes, locationId, quantity: 0 },
     });
 
     // Auch der Anfangsbestand ist eine Bewegung — sonst gäbe es Bestand ohne
@@ -99,6 +107,7 @@ export async function updateBulkItemAction(
       category: String(formData.get("category") ?? "").trim() || null,
       unit: String(formData.get("unit") ?? "Stück").trim() || "Stück",
       minQuantity: parseOptionalInt(formData.get("minQuantity")),
+      weightKg: parseOptionalFloat(formData.get("weightKg")),
       notes: String(formData.get("notes") ?? "").trim() || null,
       locationId,
       // quantity fehlt hier absichtlich: Der Bestand wird ausschließlich über

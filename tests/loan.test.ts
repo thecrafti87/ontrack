@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { alleZurueck, loanStatus, offeneAnzahl, tageUeberfaellig } from "@/lib/loan";
+import {
+  alleZurueck,
+  loanStatus,
+  offeneAnzahl,
+  tageUeberfaellig,
+  verleihUeberschneidet,
+} from "@/lib/loan";
 
 const HEUTE = new Date(2026, 7, 24, 14, 30);
 
@@ -64,5 +70,95 @@ describe("Teilrückgaben", () => {
       offeneAnzahl([{ returnedAt: new Date() }, { returnedAt: null }, { returnedAt: null }])
     ).toBe(2);
     expect(offeneAnzahl([])).toBe(0);
+  });
+});
+
+describe("verleihUeberschneidet", () => {
+  const AUSGEGEBEN = new Date("2026-10-01");
+  const STICHTAG = new Date("2026-10-05");
+
+  function verleih(dueAt: string, itemReturnedAt: Date | null = null) {
+    return { issuedAt: AUSGEGEBEN, dueAt: new Date(dueAt), itemReturnedAt };
+  }
+
+  it("gibt ein zurückgegebenes Gerät frei, egal wann die Veranstaltung ist", () => {
+    const zurueck = verleih("2026-10-10", new Date("2026-10-03"));
+    expect(
+      verleihUeberschneidet(zurueck, new Date("2026-10-05"), new Date("2026-10-06"), STICHTAG)
+    ).toBe(false);
+  });
+
+  it("erkennt eine Veranstaltung mitten im Verleihzeitraum", () => {
+    expect(
+      verleihUeberschneidet(
+        verleih("2026-10-10"),
+        new Date("2026-10-05"),
+        new Date("2026-10-06"),
+        STICHTAG
+      )
+    ).toBe(true);
+  });
+
+  it("zählt den Rückgabetag selbst noch als belegt", () => {
+    expect(
+      verleihUeberschneidet(
+        verleih("2026-10-10"),
+        new Date("2026-10-10"),
+        new Date("2026-10-11"),
+        STICHTAG
+      )
+    ).toBe(true);
+  });
+
+  it("gibt den Tag nach der Rückgabe frei", () => {
+    expect(
+      verleihUeberschneidet(
+        verleih("2026-10-10"),
+        new Date("2026-10-11"),
+        new Date("2026-10-12"),
+        STICHTAG
+      )
+    ).toBe(false);
+  });
+
+  it("ignoriert die Uhrzeit", () => {
+    // Ein Verleih, der um 14:00 herausgeht, blockiert die Veranstaltung, die
+    // am selben Tag um 00:00 endet. Alles andere wäre Scheingenauigkeit.
+    const nachmittags = {
+      issuedAt: new Date("2026-10-05T14:00:00"),
+      dueAt: new Date("2026-10-09T14:00:00"),
+      itemReturnedAt: null,
+    };
+    expect(
+      verleihUeberschneidet(
+        nachmittags,
+        new Date("2026-10-04T00:00:00"),
+        new Date("2026-10-05T00:00:00"),
+        STICHTAG
+      )
+    ).toBe(true);
+  });
+
+  it("blockiert bei Überfälligkeit auch weit entfernte Zeiträume", () => {
+    const ueberfaellig = verleih("2026-10-02");
+    expect(
+      verleihUeberschneidet(
+        ueberfaellig,
+        new Date("2028-01-01"),
+        new Date("2028-01-02"),
+        STICHTAG
+      )
+    ).toBe(true);
+  });
+
+  it("blockiert einen künftigen Zeitraum nicht, solange die Frist läuft", () => {
+    expect(
+      verleihUeberschneidet(
+        verleih("2026-10-10"),
+        new Date("2026-11-01"),
+        new Date("2026-11-02"),
+        STICHTAG
+      )
+    ).toBe(false);
   });
 });

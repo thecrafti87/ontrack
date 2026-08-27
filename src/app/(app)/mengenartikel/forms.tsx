@@ -21,6 +21,7 @@ type ItemFormProps = {
     category: string | null;
     unit: string;
     minQuantity: number | null;
+    weightKg: number | null;
     notes: string | null;
     locationId: string | null;
   };
@@ -117,6 +118,25 @@ export function BulkItemForm({ mode, categories, locations, initial }: ItemFormP
             placeholder="leer = keine Warnung"
             defaultValue={initial?.minQuantity ?? ""}
           />
+        </div>
+
+        <div>
+          <label className="label" htmlFor="weightKg">
+            Gewicht je Stück (kg)
+          </label>
+          <input
+            id="weightKg"
+            name="weightKg"
+            type="number"
+            min={0}
+            step="0.01"
+            className="input"
+            placeholder="leer = zählt nicht mit"
+            defaultValue={initial?.weightKg ?? ""}
+          />
+          <p className="mt-1 text-xs text-muted">
+            Zählt in der Gewichtssumme einer Veranstaltung mit — 200 Kabel wiegen im LKW mit.
+          </p>
         </div>
 
         {mode === "create" && (

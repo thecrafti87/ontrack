@@ -24,6 +24,10 @@ import { AddDevicesPicker } from "./AddDevicesPicker";
 import { CollapsibleGroup } from "./CollapsibleGroup";
 import { MISSION_PHASES, type MissionPhase } from "@/lib/constants";
 import { summarizeLoad } from "@/lib/load";
+import { verleihUeberschneidet, tageUeberfaellig } from "@/lib/loan";
+import { konfliktText } from "@/lib/eventConflicts";
+import { einsatzBilanz, einsatzStatus } from "@/lib/bulk";
+import { BulkPacklist, type BulkRow } from "./BulkPacklist";
 import { LoadSummaryCard } from "@/components/LoadSummary";
 import { StartMissionForm } from "../../einsatz/forms";
 import { PlanUploadForm } from "./PlanUploadForm";
@@ -167,13 +171,60 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   ).length;
   const returnedCount = event.items.filter((i) => i.status === "ZURUECK").length;
 
-  const last = summarizeLoad(
-    event.items.map((i) => ({
+  // Mengenartikel der Packliste. Was mitging und was zurückkam, steht nicht
+  // im Eintrag, sondern ergibt sich aus den Bewegungen dieser Veranstaltung —
+  // dieselbe Quelle, aus der sich auch der Bestand ergibt.
+  const bulkEintraege = await prisma.eventBulkItem.findMany({
+    where: { eventId: event.id },
+    include: { item: true },
+    orderBy: { item: { name: "asc" } },
+  });
+  const bulkBewegungen = await prisma.bulkMovement.findMany({
+    where: { eventId: event.id },
+    select: { itemId: true, delta: true, reason: true },
+  });
+
+  const bulkRows: BulkRow[] = bulkEintraege.map((eintrag) => {
+    const bilanz = einsatzBilanz(
+      bulkBewegungen.filter((bewegung) => bewegung.itemId === eintrag.bulkItemId)
+    );
+    return {
+      id: eintrag.id,
+      bulkItemId: eintrag.bulkItemId,
+      name: eintrag.item.name,
+      unit: eintrag.item.unit,
+      geplant: eintrag.plannedQty,
+      mitgenommen: bilanz.mitgenommen,
+      zurueck: bilanz.zurueck,
+      offen: bilanz.offen,
+      status: einsatzStatus(bilanz),
+      bestand: eintrag.item.quantity,
+    };
+  });
+
+  const last = summarizeLoad([
+    ...event.items.map((i) => ({
       weightKg: i.device.weightKg,
       powerRaw: i.device.fieldValues[0]?.value ?? null,
-    }))
-  );
+    })),
+    // Mengenartikel zählen mit ihrer Stückzahl: 200 Kabel sind kein Detail
+    // in der Ladungsplanung. Gerechnet wird mit der geplanten Menge, denn die
+    // Summe soll die Frage vor der Fahrt beantworten, nicht danach.
+    ...bulkRows.map((row) => ({
+      weightKg: bulkEintraege.find((e) => e.bulkItemId === row.bulkItemId)?.item.weightKg ?? null,
+      powerRaw: null,
+      menge: row.geplant,
+      // Kabel und Schellen ziehen keinen Strom. Sie in der Strom-Warnung
+      // mitzuzählen machte diese unbrauchbar.
+      zaehltStrom: false,
+    })),
+  ]);
   const notReturnedItems = event.items.filter((i) => i.status !== "ZURUECK");
+
+  const bulkCandidates = await prisma.bulkItem.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, unit: true, quantity: true },
+  });
 
   // Kandidaten für "Geräte hinzufügen" — noch nicht im Event, einplanbarer Status
   const existingDeviceIds = new Set(event.items.map((i) => i.deviceId));
@@ -203,19 +254,57 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
     if (!conflictByDeviceId.has(item.deviceId)) conflictByDeviceId.set(item.deviceId, item);
   }
 
+  // Verliehene Geräte, dieselbe Batch-Logik. Ein Gerät, das bei jemand anderem
+  // steht, ist nicht einplanbar — auch wenn der Termin frei wäre.
+  const openLoanItems =
+    candidateIds.length > 0
+      ? await prisma.loanItem.findMany({
+          where: { deviceId: { in: candidateIds }, returnedAt: null },
+          include: { loan: true },
+        })
+      : [];
+  const loanByDeviceId = new Map<string, (typeof openLoanItems)[number]>();
+  for (const item of openLoanItems) {
+    const blockiert = verleihUeberschneidet(
+      { issuedAt: item.loan.issuedAt, dueAt: item.loan.dueAt, itemReturnedAt: item.returnedAt },
+      event.startDate,
+      event.endDate
+    );
+    if (!blockiert) continue;
+    // Bei mehreren offenen Verleihen gewinnt der, der am längsten blockiert.
+    const bisher = loanByDeviceId.get(item.deviceId);
+    if (!bisher || item.loan.dueAt > bisher.loan.dueAt) loanByDeviceId.set(item.deviceId, item);
+  }
+
   const pickerCandidates = candidateDevices.map((d) => {
     const conflictItem = conflictByDeviceId.get(d.id);
-    return {
-      id: d.id,
-      name: d.name,
-      inventoryNo: d.inventoryNo,
-      conflict: conflictItem
-        ? {
-            eventName: conflictItem.event.name,
-            period: formatDateRange(conflictItem.event.startDate, conflictItem.event.endDate),
-          }
-        : null,
-    };
+    const loanItem = loanByDeviceId.get(d.id);
+
+    let conflict: { label: string } | null = null;
+    if (conflictItem) {
+      conflict = {
+        label: `verplant für ${conflictItem.event.name} (${formatDateRange(
+          conflictItem.event.startDate,
+          conflictItem.event.endDate
+        )})`,
+      };
+    } else if (loanItem) {
+      const tage = tageUeberfaellig(loanItem.loan.dueAt, loanItem.returnedAt);
+      conflict = {
+        label: konfliktText({
+          art: "verleih",
+          verleih: {
+            loanId: loanItem.loanId,
+            borrower: loanItem.loan.borrower,
+            dueAt: loanItem.loan.dueAt,
+            ueberfaellig: tage > 0,
+            tage,
+          },
+        }),
+      };
+    }
+
+    return { id: d.id, name: d.name, inventoryNo: d.inventoryNo, conflict };
   });
 
   const cases = await prisma.case.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
@@ -273,7 +362,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
       {/* Was der LKW tragen und die Einspeisung liefern muss — steht vor der
           Packliste, weil es die Entscheidung ist, die man vorher trifft. */}
-      <LoadSummaryCard summary={last} titel="Gewicht & Strom dieser Veranstaltung" />
+      <LoadSummaryCard
+        summary={last}
+        titel="Gewicht & Strom dieser Veranstaltung"
+        gemischt={bulkRows.length > 0}
+      />
 
       {/* Packliste */}
       <div className="card flex flex-col gap-4">
@@ -330,6 +423,18 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             defaultOpen={total < GROUP_AUTOOPEN_THRESHOLD}
           />
         )}
+      </div>
+
+      {/* Mengenartikel: eigener Abschnitt, weil sie nicht dieselben vier
+          Phasen durchlaufen wie Geräte. */}
+      <div className="card flex flex-col gap-4">
+        <h2 className="font-semibold">Kabel & Kleinteile</h2>
+        <BulkPacklist
+          eventId={event.id}
+          rows={bulkRows}
+          candidates={bulkCandidates}
+          editable={editable}
+        />
       </div>
 
       {/* Geräte hinzufügen */}

@@ -7,7 +7,8 @@ import { requireUser, canEdit } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { saveUpload } from "@/lib/uploads";
 import { NOT_PLANNABLE, EVENT_ITEM_STATUS, type EventItemStatus, type DeviceStatus } from "@/lib/constants";
-import { findEventConflict } from "@/lib/eventConflicts";
+import { findPlanningConflict, konfliktText, type PlanningConflict } from "@/lib/eventConflicts";
+import { pruefeBewegung } from "@/lib/bulk";
 
 export type ActionState = { error?: string; success?: string } | undefined;
 
@@ -130,27 +131,29 @@ export async function addDevicesToEventAction(
     return { error: "Keine neuen, einplanbaren Geräte in der Auswahl." };
   }
 
-  const conflictByDevice = new Map<string, boolean>();
+  const conflictByDevice = new Map<string, PlanningConflict>();
   const conflictNames: string[] = [];
   for (const candidate of candidates) {
-    const conflict = await findEventConflict(candidate.id, eventId, event.startDate, event.endDate);
-    conflictByDevice.set(candidate.id, !!conflict);
-    if (conflict) conflictNames.push(candidate.name);
+    const conflict = await findPlanningConflict(candidate.id, eventId, event.startDate, event.endDate);
+    conflictByDevice.set(candidate.id, conflict);
+    // Der Grund gehört in die Meldung: "Terminkonflikt" und "steht bei
+    // jemand anderem im Keller" verlangen verschiedene Entscheidungen.
+    if (conflict) conflictNames.push(`${candidate.name} (${konfliktText(conflict)})`);
   }
 
   if (conflictNames.length > 0 && !override) {
     return {
-      error: `Terminkonflikt bei: ${conflictNames.join(", ")}. Bitte "Konflikte ignorieren" aktivieren, um trotzdem einzuplanen.`,
+      error: `Konflikt bei: ${conflictNames.join(", ")}. Bitte „Konflikte ignorieren“ aktivieren, um trotzdem einzuplanen.`,
     };
   }
 
   for (const candidate of candidates) {
     await prisma.eventItem.create({ data: { eventId, deviceId: candidate.id } });
-    const hadConflict = conflictByDevice.get(candidate.id);
+    const conflict = conflictByDevice.get(candidate.id);
     await logActivity({
       userId: user.id,
-      action: hadConflict
-        ? `Packliste: ${candidate.name} trotz Konflikt eingeplant`
+      action: conflict
+        ? `Packliste: ${candidate.name} trotz Konflikt eingeplant (${konfliktText(conflict)})`
         : `Packliste: ${candidate.name} hinzugefügt`,
       eventId,
       deviceId: candidate.id,
@@ -181,6 +184,7 @@ export async function addCaseToEventAction(
   let added = 0;
   let skippedNotPlannable = 0;
   let skippedConflict = 0;
+  let skippedLoan = 0;
 
   for (const device of targetCase.devices) {
     const existingItem = await prisma.eventItem.findUnique({
@@ -193,9 +197,10 @@ export async function addCaseToEventAction(
       continue;
     }
 
-    const conflict = await findEventConflict(device.id, eventId, event.startDate, event.endDate);
+    const conflict = await findPlanningConflict(device.id, eventId, event.startDate, event.endDate);
     if (conflict) {
-      skippedConflict++;
+      if (conflict.art === "verleih") skippedLoan++;
+      else skippedConflict++;
       continue;
     }
 
@@ -212,6 +217,7 @@ export async function addCaseToEventAction(
   const parts = [`${added} Gerät(e) hinzugefügt`];
   if (skippedNotPlannable > 0) parts.push(`${skippedNotPlannable} übersprungen (defekt)`);
   if (skippedConflict > 0) parts.push(`${skippedConflict} übersprungen (Terminkonflikt)`);
+  if (skippedLoan > 0) parts.push(`${skippedLoan} übersprungen (verliehen)`);
 
   revalidatePath(`/events/${eventId}`);
   return { success: parts.join(", ") };
@@ -420,5 +426,142 @@ export async function removePlanPositionAction(
   await prisma.eventItem.update({ where: { id: itemId }, data: { planX: null, planY: null } });
 
   revalidatePath(`/events/${item.eventId}`);
+  return undefined;
+}
+
+// ── Packliste: Mengenartikel ────────────────────────────────────────
+
+/**
+ * Mengenartikel zur Packliste hinzufügen.
+ *
+ * Anders als Geräte werden sie hier nur *geplant* — der Bestand ändert sich
+ * erst, wenn tatsächlich etwas mitgenommen wird. Eine Konfliktprüfung gibt es
+ * nicht: 40 Kabel sind nicht dasselbe Kabel wie die 40 auf der anderen
+ * Veranstaltung, und ob der Bestand reicht, entscheidet sich beim Packen.
+ */
+export async function addBulkItemToEventAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireUser();
+  if (!canEdit(user)) return { error: "Keine Berechtigung." };
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const bulkItemId = String(formData.get("bulkItemId") ?? "");
+  const plannedQty = Number(formData.get("plannedQty") ?? "");
+
+  if (!bulkItemId) return { error: "Bitte einen Mengenartikel auswählen." };
+  if (!Number.isInteger(plannedQty) || plannedQty < 1) {
+    return { error: "Bitte eine Menge ab 1 angeben." };
+  }
+
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event) return { error: "Veranstaltung nicht gefunden." };
+
+  const item = await prisma.bulkItem.findUnique({ where: { id: bulkItemId } });
+  if (!item) return { error: "Mengenartikel nicht gefunden." };
+
+  // Zweimal derselbe Artikel ergibt keine zweite Zeile, sondern die neue Menge.
+  await prisma.eventBulkItem.upsert({
+    where: { eventId_bulkItemId: { eventId, bulkItemId } },
+    create: { eventId, bulkItemId, plannedQty },
+    update: { plannedQty },
+  });
+
+  await logActivity({
+    userId: user.id,
+    action: `Packliste: ${plannedQty} ${item.unit} ${item.name} eingeplant`,
+    eventId,
+  });
+
+  revalidatePath(`/events/${eventId}`);
+  return undefined;
+}
+
+export async function removeBulkItemFromEventAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireUser();
+  if (!canEdit(user)) return { error: "Keine Berechtigung." };
+
+  const id = String(formData.get("id") ?? "");
+  const eintrag = await prisma.eventBulkItem.findUnique({
+    where: { id },
+    include: { item: true },
+  });
+  if (!eintrag) return { error: "Eintrag nicht gefunden." };
+
+  // Bereits gebuchte Bewegungen bleiben stehen — sie sind passiert. Wer den
+  // Artikel von der Liste nimmt, streicht die Planung, nicht die Geschichte.
+  await prisma.eventBulkItem.delete({ where: { id } });
+
+  await logActivity({
+    userId: user.id,
+    action: `Packliste: ${eintrag.item.name} von der Planung genommen`,
+    eventId: eintrag.eventId,
+  });
+
+  revalidatePath(`/events/${eintrag.eventId}`);
+  return undefined;
+}
+
+/**
+ * Mengenartikel für eine Veranstaltung ausbuchen oder zurückbuchen.
+ *
+ * Läuft über dieselben Bewegungen wie jede andere Entnahme, nur mit gesetzter
+ * eventId. Dadurch beantwortet der Verlauf eines Artikels weiterhin die
+ * einzige Frage, auf die es ankommt: wohin sind die 40 Kabel gegangen.
+ */
+export async function bookEventBulkAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireUser();
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const bulkItemId = String(formData.get("bulkItemId") ?? "");
+  const richtung = String(formData.get("richtung") ?? "");
+  const menge = Number(formData.get("menge") ?? "");
+
+  if (richtung !== "ENTNAHME" && richtung !== "RUECKGABE") {
+    return { error: "Unbekannte Buchung." };
+  }
+
+  const item = await prisma.bulkItem.findUnique({ where: { id: bulkItemId } });
+  if (!item) return { error: "Mengenartikel nicht gefunden." };
+
+  const pruefung = pruefeBewegung(richtung, menge, item.quantity);
+  if (!pruefung.ok) return { error: pruefung.fehler };
+
+  await prisma.$transaction([
+    prisma.bulkItem.update({
+      where: { id: bulkItemId },
+      data: { quantity: { increment: pruefung.delta } },
+    }),
+    prisma.bulkMovement.create({
+      data: {
+        itemId: bulkItemId,
+        delta: pruefung.delta,
+        reason: richtung,
+        note: null,
+        userId: user.id,
+        eventId,
+      },
+    }),
+  ]);
+
+  await logActivity({
+    userId: user.id,
+    action:
+      richtung === "ENTNAHME"
+        ? `Packliste: ${menge} ${item.unit} ${item.name} mitgenommen`
+        : `Packliste: ${menge} ${item.unit} ${item.name} zurückgebracht`,
+    eventId,
+  });
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/einsatz");
+  revalidatePath(`/mengenartikel/${bulkItemId}`);
   return undefined;
 }

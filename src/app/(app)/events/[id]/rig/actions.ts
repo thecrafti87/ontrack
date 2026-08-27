@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { NOT_PLANNABLE, type DeviceStatus } from "@/lib/constants";
-import { findEventConflict } from "@/lib/eventConflicts";
+import { findPlanningConflict } from "@/lib/eventConflicts";
 
 export type ActionState = { error?: string; success?: string } | undefined;
 
@@ -246,9 +246,9 @@ export async function applyRigToPacklistAction(eventId: string): Promise<ApplyPa
       bump("nicht einsatzbereit");
       continue;
     }
-    const conflict = await findEventConflict(deviceId, eventId, event.startDate, event.endDate);
+    const conflict = await findPlanningConflict(deviceId, eventId, event.startDate, event.endDate);
     if (conflict) {
-      bump("Terminkonflikt");
+      bump(conflict.art === "verleih" ? "verliehen" : "Terminkonflikt");
       continue;
     }
 

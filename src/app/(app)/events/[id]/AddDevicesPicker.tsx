@@ -7,7 +7,8 @@ type Candidate = {
   id: string;
   name: string;
   inventoryNo: string;
-  conflict: { eventName: string; period: string } | null;
+  /** Fertig formulierter Grund vom Server — Doppelbuchung oder Verleih. */
+  conflict: { label: string } | null;
 };
 
 export function AddDevicesPicker({
@@ -116,9 +117,7 @@ export function AddDevicesPicker({
                   {c.name} <span className="font-mono text-muted text-sm">{c.inventoryNo}</span>
                 </span>
                 {c.conflict && (
-                  <span className="block text-xs text-amber-400">
-                    ⚠️ verplant für {c.conflict.eventName} ({c.conflict.period})
-                  </span>
+                  <span className="block text-xs text-amber-400">⚠️ {c.conflict.label}</span>
                 )}
               </span>
             </label>

@@ -76,3 +76,36 @@ export function alleZurueck(items: { returnedAt: Date | null }[]): boolean {
 export function offeneAnzahl(items: { returnedAt: Date | null }[]): number {
   return items.filter((i) => i.returnedAt == null).length;
 }
+
+/**
+ * Belegt ein laufender Verleih den Zeitraum einer Veranstaltung?
+ *
+ * Drei Fälle, in dieser Reihenfolge:
+ *
+ * 1. Zurückgegeben → das Gerät steht im Lager, kein Konflikt.
+ * 2. Überfällig und noch nicht zurück → das Gerät ist faktisch weg, und
+ *    niemand weiß, wann es wiederkommt. Das blockiert *jeden* Zeitraum,
+ *    auch einen weit entfernten. Sonst plant man mit einem Scheinwerfer,
+ *    der seit drei Wochen bei jemand anderem steht.
+ * 3. Sonst: überschneiden sich Verleihzeitraum und Veranstaltung?
+ *
+ * Gerechnet wird auf Tagesgrenzen. Ein Verleih, der am Anreisetag
+ * zurückkommt, kollidiert mit einer Veranstaltung, die am selben Tag
+ * beginnt — die Uhrzeit weiß niemand, der Konflikt ist echt.
+ */
+export function verleihUeberschneidet(
+  verleih: { issuedAt: Date; dueAt: Date; itemReturnedAt: Date | null },
+  eventStart: Date,
+  eventEnde: Date,
+  heute: Date = new Date()
+): boolean {
+  if (verleih.itemReturnedAt) return false;
+  if (loanStatus(verleih.dueAt, verleih.itemReturnedAt, heute) === "ueberfaellig") return true;
+
+  const ausgegeben = tagesbeginn(verleih.issuedAt).getTime();
+  const zurueckAm = tagesbeginn(verleih.dueAt).getTime();
+  const beginn = tagesbeginn(eventStart).getTime();
+  const ende = tagesbeginn(eventEnde).getTime();
+
+  return ausgegeben <= ende && zurueckAm >= beginn;
+}

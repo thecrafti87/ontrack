@@ -23,18 +23,34 @@ export type LoadItem = {
   weightKg: number | null;
   /** Rohwert des Feldkatalog-Eintrags "powerW", falls gepflegt. */
   powerRaw: string | null;
-  /** Stückzahl, falls das Objekt mehrfach zählt (Vorbereitung für Mengenartikel). */
+  /** Stückzahl, falls das Objekt mehrfach zählt (Mengenartikel). */
   menge?: number;
+  /**
+   * Kann dieser Eintrag überhaupt Strom ziehen? Für Kabel, Schellen und
+   * Gaffa ist das nein — sie als „ohne Leistung gepflegt" zu zählen, machte
+   * die Warnung nutzlos, denn sie bekommen nie eine Wattzahl.
+   */
+  zaehltStrom?: boolean;
 };
 
 export type LoadSummary = {
   gewichtKg: number;
-  /** Geräte ohne gepflegtes Gewicht — die Summe ist um sie zu niedrig. */
+  /**
+   * Einträge ohne gepflegtes Gewicht — die Summe ist um sie zu niedrig.
+   *
+   * Gezählt werden Einträge, nicht Stückzahlen: Ein Mengenartikel ohne
+   * Gewicht ist eine fehlende Angabe, nicht vierzig.
+   */
   ohneGewicht: number;
   leistungW: number;
-  /** Geräte ohne gepflegte Leistung. */
+  /** Einträge, die Strom ziehen könnten, aber keine Leistung hinterlegt haben. */
   ohneLeistung: number;
+  /** Stückzahl insgesamt. */
   gesamt: number;
+  /** Anzahl der Einträge — Bezugsgröße für die Gewichts-Warnung. */
+  posGesamt: number;
+  /** Einträge, die überhaupt Strom ziehen können — Bezugsgröße für die Strom-Warnung. */
+  stromGesamt: number;
 };
 
 /**
@@ -68,17 +84,21 @@ export function summarizeLoad(items: LoadItem[]): LoadSummary {
   let leistungW = 0;
   let ohneLeistung = 0;
   let gesamt = 0;
+  let stromGesamt = 0;
 
   for (const item of items) {
     const menge = item.menge ?? 1;
     gesamt += menge;
 
     if (item.weightKg != null && item.weightKg > 0) gewichtKg += item.weightKg * menge;
-    else ohneGewicht += menge;
+    else ohneGewicht++;
+
+    if (item.zaehltStrom === false) continue;
+    stromGesamt++;
 
     const watt = parseNumericFieldValue(item.powerRaw);
     if (watt != null && watt > 0) leistungW += watt * menge;
-    else ohneLeistung += menge;
+    else ohneLeistung++;
   }
 
   return {
@@ -89,6 +109,8 @@ export function summarizeLoad(items: LoadItem[]): LoadSummary {
     leistungW: Math.round(leistungW),
     ohneLeistung,
     gesamt,
+    posGesamt: items.length,
+    stromGesamt,
   };
 }
 

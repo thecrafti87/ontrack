@@ -18,6 +18,8 @@ process.env.DATABASE_URL = `file:${DB_DATEI}`;
 // Dynamisch geladen, damit DATABASE_URL vorher steht.
 let prisma: import("@prisma/client").PrismaClient;
 let findEventConflict: typeof import("@/lib/eventConflicts").findEventConflict;
+let findLoanConflict: typeof import("@/lib/eventConflicts").findLoanConflict;
+let findPlanningConflict: typeof import("@/lib/eventConflicts").findPlanningConflict;
 
 const OKTOBER = { start: new Date("2026-10-21"), end: new Date("2026-10-22") };
 
@@ -30,10 +32,17 @@ beforeAll(async () => {
   prisma = new PrismaClient();
   await applyMigrations(prisma, path.join(process.cwd(), "prisma", "migrations"));
 
-  ({ findEventConflict } = await import("@/lib/eventConflicts"));
+  ({ findEventConflict, findLoanConflict, findPlanningConflict } = await import(
+    "@/lib/eventConflicts"
+  ));
 
   await prisma.device.create({ data: { id: "d1", inventoryNo: "OT-0001", name: "Moving Head" } });
   await prisma.device.create({ data: { id: "d2", inventoryNo: "OT-0002", name: "Astera" } });
+  await prisma.device.create({ data: { id: "d3", inventoryNo: "OT-0003", name: "Funkstrecke" } });
+
+  await prisma.user.create({
+    data: { id: "u1", email: "lager@example.test", name: "Lager", passwordHash: "x", approved: true },
+  });
 
   await prisma.event.create({
     data: { id: "e1", name: "Stadtfest", startDate: OKTOBER.start, endDate: OKTOBER.end },
@@ -112,5 +121,113 @@ describe("Doppelbuchung von Geräten", () => {
       const konflikt = await findEventConflict("d2", "e2", OKTOBER.start, OKTOBER.end);
       expect(konflikt, `Status ${status} müsste als Konflikt zählen`).not.toBeNull();
     }
+  });
+});
+
+describe("Verliehene Geräte in der Planung", () => {
+  /** Ein Verleih mit frei wählbaren Eckdaten; das Gerät ist noch nicht zurück. */
+  async function verleihe(
+    deviceId: string,
+    loanId: string,
+    issuedAt: Date,
+    dueAt: Date,
+    borrower = "Bühnenbau Meier"
+  ) {
+    await prisma.loan.create({
+      data: { id: loanId, borrower, issuedAt, dueAt, issuedById: "u1" },
+    });
+    await prisma.loanItem.create({ data: { loanId, deviceId } });
+  }
+
+  it("meldet keinen Konflikt, solange nichts verliehen ist", async () => {
+    expect(await findLoanConflict("d3", OKTOBER.start, OKTOBER.end)).toBeNull();
+  });
+
+  it("erkennt ein Gerät, das im Veranstaltungszeitraum draußen ist", async () => {
+    await verleihe("d3", "l1", new Date("2026-10-19"), new Date("2026-10-25"));
+
+    const konflikt = await findLoanConflict("d3", OKTOBER.start, OKTOBER.end);
+    expect(konflikt?.borrower).toBe("Bühnenbau Meier");
+    expect(konflikt?.ueberfaellig).toBe(false);
+  });
+
+  it("zählt den Rückgabetag als belegt", async () => {
+    // Rückgabe am Anreisetag: Die Uhrzeit weiß niemand, der Konflikt ist echt.
+    const konflikt = await findLoanConflict(
+      "d3",
+      new Date("2026-10-25"),
+      new Date("2026-10-26"),
+      new Date("2026-10-01")
+    );
+    expect(konflikt).not.toBeNull();
+  });
+
+  it("gibt das Gerät nach dem Rückgabetag wieder frei", async () => {
+    expect(
+      await findLoanConflict(
+        "d3",
+        new Date("2026-10-26"),
+        new Date("2026-10-27"),
+        new Date("2026-10-01")
+      )
+    ).toBeNull();
+  });
+
+  it("blockiert bei überfälligem Verleih jeden Zeitraum", async () => {
+    // Das Gerät ist faktisch weg. Ein Termin in drei Monaten hilft nicht,
+    // solange niemand weiß, wann es wiederkommt.
+    const weitInDerZukunft = { start: new Date("2027-03-01"), end: new Date("2027-03-02") };
+    const konflikt = await findLoanConflict(
+      "d3",
+      weitInDerZukunft.start,
+      weitInDerZukunft.end,
+      new Date("2026-11-15")
+    );
+    expect(konflikt?.ueberfaellig).toBe(true);
+    expect(konflikt?.tage).toBe(21);
+  });
+
+  it("gibt zurückgegebene Positionen frei, auch wenn der Verleih noch offen ist", async () => {
+    await prisma.loanItem.updateMany({
+      where: { loanId: "l1", deviceId: "d3" },
+      data: { returnedAt: new Date("2026-10-20") },
+    });
+    expect(
+      await findLoanConflict("d3", OKTOBER.start, OKTOBER.end, new Date("2026-11-15"))
+    ).toBeNull();
+  });
+
+  it("meldet bei mehreren offenen Verleihen den, der am längsten blockiert", async () => {
+    await verleihe("d3", "l2", new Date("2026-10-19"), new Date("2026-10-23"), "Kurz");
+    await verleihe("d3", "l3", new Date("2026-10-19"), new Date("2026-10-28"), "Lang");
+
+    const konflikt = await findLoanConflict("d3", OKTOBER.start, OKTOBER.end, new Date("2026-10-01"));
+    expect(konflikt?.borrower).toBe("Lang");
+  });
+});
+
+describe("Kombinierte Prüfung", () => {
+  it("meldet die Doppelbuchung, wenn beides zutrifft", async () => {
+    // Reihenfolge ist Absicht: Der Terminkonflikt ist der häufigere Fall und
+    // die Meldung, mit der man zuerst etwas anfangen kann.
+    const konflikt = await findPlanningConflict("d1", "e2", OKTOBER.start, OKTOBER.end);
+    expect(konflikt?.art).toBe("event");
+  });
+
+  it("meldet den Verleih, wenn der Termin frei ist", async () => {
+    const konflikt = await findPlanningConflict(
+      "d3",
+      "e2",
+      OKTOBER.start,
+      OKTOBER.end,
+      new Date("2026-10-01")
+    );
+    expect(konflikt?.art).toBe("verleih");
+  });
+
+  it("meldet nichts, wenn das Gerät frei und da ist", async () => {
+    expect(
+      await findPlanningConflict("d2", "e2", new Date("2027-06-01"), new Date("2027-06-02"))
+    ).toBeNull();
   });
 });

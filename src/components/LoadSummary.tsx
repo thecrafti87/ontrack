@@ -10,18 +10,48 @@ import {
  * im Plural, das Verb richtet sich nach der Anzahl. Fehlt der Wert überall,
  * ist die verneinte Form eine andere — „für keines der Geräte ist EIN Gewicht
  * hinterlegt", nicht „kein Gewicht".
+ *
+ * Das Substantiv kommt von außen, weil in einer Packliste nicht nur Geräte
+ * stehen: 40 DMX-Kabel sind eine Position, nicht vierzig Geräte.
  */
-function fehlendText(ohne: number, gesamt: number, nomen: "Gewicht" | "Leistung"): string {
+function fehlendText(
+  ohne: number,
+  gesamt: number,
+  nomen: "Gewicht" | "Leistung",
+  einheit: Einheit
+): string {
   const ohneWert = nomen === "Gewicht" ? "kein Gewicht" : "keine Leistung";
   const einWert = nomen === "Gewicht" ? "ein Gewicht" : "eine Leistung";
 
   if (ohne === gesamt) {
     return gesamt === 1
-      ? `Für dieses Gerät ist ${ohneWert} hinterlegt.`
-      : `Für keines der ${gesamt} Geräte ist ${einWert} hinterlegt.`;
+      ? `Für ${einheit.diesesSingular} ist ${ohneWert} hinterlegt.`
+      : `Für ${einheit.keinesPlural} ${gesamt} ${einheit.plural} ist ${einWert} hinterlegt.`;
   }
-  return `${ohne} von ${gesamt} Geräten ${ohne === 1 ? "hat" : "haben"} ${ohneWert} hinterlegt.`;
+  return `${ohne} von ${gesamt} ${einheit.dativPlural} ${ohne === 1 ? "hat" : "haben"} ${ohneWert} hinterlegt.`;
 }
+
+type Einheit = {
+  plural: string;
+  dativPlural: string;
+  diesesSingular: string;
+  keinesPlural: string;
+};
+
+const GERAETE: Einheit = {
+  plural: "Geräte",
+  dativPlural: "Geräten",
+  diesesSingular: "dieses Gerät",
+  keinesPlural: "keines der",
+};
+
+/** Gemischte Packliste: Geräte und Mengenartikel nebeneinander. */
+const POSITIONEN: Einheit = {
+  plural: "Positionen",
+  dativPlural: "Positionen",
+  diesesSingular: "diese Position",
+  keinesPlural: "keine der",
+};
 
 /**
  * Gewicht und Stromlast einer Zusammenstellung.
@@ -34,9 +64,12 @@ function fehlendText(ohne: number, gesamt: number, nomen: "Gewicht" | "Leistung"
 export function LoadSummaryCard({
   summary,
   titel = "Gewicht & Strom",
+  gemischt = false,
 }: {
   summary: Summary;
   titel?: string;
+  /** Stehen neben Geräten auch Mengenartikel in der Liste? */
+  gemischt?: boolean;
 }) {
   if (summary.gesamt === 0) return null;
 
@@ -45,6 +78,7 @@ export function LoadSummaryCard({
 
   const gewichtVollstaendig = summary.ohneGewicht === 0;
   const leistungVollstaendig = summary.ohneLeistung === 0;
+  const gewichtEinheit = gemischt ? POSITIONEN : GERAETE;
 
   return (
     <div className="card flex flex-col gap-3">
@@ -59,7 +93,7 @@ export function LoadSummaryCard({
           </p>
           {!gewichtVollstaendig && (
             <p className="text-xs text-amber-400 mt-1">
-              {fehlendText(summary.ohneGewicht, summary.gesamt, "Gewicht")} Die
+              {fehlendText(summary.ohneGewicht, summary.posGesamt, "Gewicht", gewichtEinheit)} Die
               Summe ist entsprechend zu niedrig.
             </p>
           )}
@@ -81,7 +115,7 @@ export function LoadSummaryCard({
           )}
           {!leistungVollstaendig && (
             <p className="text-xs text-amber-400 mt-1">
-              {fehlendText(summary.ohneLeistung, summary.gesamt, "Leistung")}
+              {fehlendText(summary.ohneLeistung, summary.stromGesamt, "Leistung", GERAETE)}
             </p>
           )}
         </div>

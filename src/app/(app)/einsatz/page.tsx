@@ -5,11 +5,47 @@ import { requireUser } from "@/lib/auth";
 import { getActiveMission } from "@/lib/mission";
 import { MISSION_PHASES, formatDateRange, type MissionPhase } from "@/lib/constants";
 import { EinsatzClient } from "./EinsatzClient";
+import { MissionBulk, type MissionBulkRow } from "./MissionBulk";
+import { einsatzBilanz } from "@/lib/bulk";
 import { EndMissionForm, StartMissionForm } from "./forms";
 
 export const metadata: Metadata = { title: "Einsatz" };
 
 const PHASEN = Object.keys(MISSION_PHASES) as MissionPhase[];
+
+/**
+ * Mengenartikel der Veranstaltung samt Bilanz.
+ *
+ * Was mitging und was zurückkam, ergibt sich aus den Bewegungen dieser
+ * Veranstaltung — nicht aus einem eigenen Zählerfeld, das mit dem Bestand
+ * auseinanderlaufen könnte.
+ */
+async function missionBulkRows(eventId: string): Promise<MissionBulkRow[]> {
+  const eintraege = await prisma.eventBulkItem.findMany({
+    where: { eventId },
+    include: { item: true },
+    orderBy: { item: { name: "asc" } },
+  });
+  if (eintraege.length === 0) return [];
+
+  const bewegungen = await prisma.bulkMovement.findMany({
+    where: { eventId },
+    select: { itemId: true, delta: true, reason: true },
+  });
+
+  return eintraege.map((eintrag) => {
+    const bilanz = einsatzBilanz(bewegungen.filter((b) => b.itemId === eintrag.bulkItemId));
+    return {
+      bulkItemId: eintrag.bulkItemId,
+      name: eintrag.item.name,
+      unit: eintrag.item.unit,
+      geplant: eintrag.plannedQty,
+      mitgenommen: bilanz.mitgenommen,
+      offen: bilanz.offen,
+      bestand: eintrag.item.quantity,
+    };
+  });
+}
 
 export default async function EinsatzPage() {
   const user = await requireUser();
@@ -31,6 +67,14 @@ export default async function EinsatzPage() {
           eventName={mission.event.name}
           erledigt={mission.fortschritt.erledigt}
           gesamt={mission.fortschritt.gesamt}
+        />
+
+        {/* Mengenartikel stehen unter der Geräteliste, nicht darin: Sie
+            werden nicht gescannt, sondern gezählt. */}
+        <MissionBulk
+          eventId={mission.event.id}
+          phase={mission.phase}
+          rows={await missionBulkRows(mission.event.id)}
         />
       </div>
     );

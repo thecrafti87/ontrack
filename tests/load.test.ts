@@ -78,6 +78,32 @@ describe("Last-Summen", () => {
     expect(s.gesamt).toBe(8);
   });
 
+  it("zählt fehlende Angaben je Eintrag, nicht je Stück", () => {
+    // Ein Mengenartikel ohne Gewicht ist EINE fehlende Angabe, nicht vierzig.
+    // Sonst läse man „40 von 41 Positionen haben kein Gewicht" und hielte die
+    // Datenlage für katastrophal, obwohl ein Feld fehlt.
+    const s = summarizeLoad([
+      { weightKg: 5, powerRaw: "100" },
+      { weightKg: null, powerRaw: null, menge: 40 },
+    ]);
+    expect(s.ohneGewicht).toBe(1);
+    expect(s.posGesamt).toBe(2);
+    expect(s.gesamt).toBe(41);
+  });
+
+  it("lässt Mengenartikel aus der Strom-Warnung heraus", () => {
+    // Ein DMX-Kabel bekommt nie eine Wattzahl. Als „ohne Leistung gepflegt"
+    // gezählt, wäre die Warnung dauerhaft rot und damit wertlos.
+    const s = summarizeLoad([
+      { weightKg: 5, powerRaw: "100" },
+      { weightKg: 0.4, powerRaw: null, menge: 40, zaehltStrom: false },
+    ]);
+    expect(s.ohneLeistung).toBe(0);
+    expect(s.stromGesamt).toBe(1);
+    // Das Gewicht zählt trotzdem voll mit: 5 + 40 × 0,4 = 21
+    expect(s.gewichtKg).toBe(21);
+  });
+
   it("rundet Gleitkomma-Reste weg", () => {
     // 0.1 + 0.2 ergibt in JavaScript 0.30000000000000004.
     const s = summarizeLoad([
@@ -94,6 +120,8 @@ describe("Last-Summen", () => {
       leistungW: 0,
       ohneLeistung: 0,
       gesamt: 0,
+      posGesamt: 0,
+      stromGesamt: 0,
     });
   });
 });

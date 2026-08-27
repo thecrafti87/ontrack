@@ -117,10 +117,11 @@ model Event {
   planImage String? // Dateiname des hochgeladenen Veranstaltungsplans
   createdAt DateTime @default(now())
 
-  items       EventItem[]
-  logs        ActivityLog[]
-  rigFixtures RigFixture[]
-  missions    ActiveMission[]
+  items         EventItem[]
+  bulkItems     EventBulkItem[]
+  logs          ActivityLog[]
+  rigFixtures   RigFixture[]
+  missions      ActiveMission[]
   bulkMovements BulkMovement[]
 }
 
@@ -139,6 +140,26 @@ model EventItem {
   device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, deviceId])
+}
+
+/**
+ * Mengenartikel auf der Packliste einer Veranstaltung.
+ *
+ * Hier steht nur die geplante Menge. Was tatsächlich mitging und was
+ * zurückkam, ergibt sich aus den Bewegungen (BulkMovement mit dieser
+ * eventId) — genau wie der Bestand selbst. Zwei Stellen, die dasselbe
+ * zählen, laufen sonst auseinander, und dann glaubt man der falschen.
+ */
+model EventBulkItem {
+  id         String @id @default(cuid())
+  eventId    String
+  bulkItemId String
+  plannedQty Int
+
+  event Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  item  BulkItem @relation(fields: [bulkItemId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, bulkItemId])
 }
 
 // ── Wartung ─────────────────────────────────────────────────────────
@@ -358,6 +379,8 @@ model BulkItem {
   quantity    Int      @default(0)
   /** Ab diesem Bestand wird gewarnt; null = keine Warnung. */
   minQuantity Int?
+  /** Gewicht je Stück in kg — 200 Kabel wiegen im LKW mit. */
+  weightKg    Float?
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -365,7 +388,8 @@ model BulkItem {
   locationId String?
   location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
-  movements BulkMovement[]
+  movements  BulkMovement[]
+  eventItems EventBulkItem[]
 
   @@unique([name, locationId])
 }

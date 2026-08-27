@@ -9,6 +9,7 @@ import {
   formatDateRange,
   groupByCategory,
 } from "@/lib/constants";
+import { einsatzBilanz, einsatzStatus, EINSATZ_STATUS_LABEL } from "@/lib/bulk";
 
 /**
  * Packliste eines Events als druckbares PDF.
@@ -69,20 +70,53 @@ export async function GET(
     }
   }
 
+  // Mengenartikel als eigene Gruppe ans Ende. Sie haben keine Inventarnummer
+  // und keine Einsatzposition — aber ein Kästchen zum Abhaken, denn genau das
+  // ist der Zweck der ausgedruckten Liste.
+  const bulkEintraege = await prisma.eventBulkItem.findMany({
+    where: { eventId },
+    include: { item: { include: { location: { select: { name: true } } } } },
+    orderBy: { item: { name: "asc" } },
+  });
+
+  if (bulkEintraege.length > 0) {
+    const bewegungen = await prisma.bulkMovement.findMany({
+      where: { eventId },
+      select: { itemId: true, delta: true, reason: true },
+    });
+
+    groupHeadings.set(rows.length, `Kabel & Kleinteile (${bulkEintraege.length})`);
+    for (const eintrag of bulkEintraege) {
+      const bilanz = einsatzBilanz(bewegungen.filter((b) => b.itemId === eintrag.bulkItemId));
+      rows.push([
+        "",
+        `${eintrag.plannedQty} ${eintrag.item.unit} ${eintrag.item.name}`,
+        eintrag.item.location?.name ?? "",
+        "",
+        EINSATZ_STATUS_LABEL[einsatzStatus(bilanz)],
+      ]);
+    }
+  }
+
   const zeitraum = formatDateRange(event.startDate, event.endDate);
   const ort = event.venue ? ` · ${event.venue}` : "";
 
   const pdf = await renderTablePdf(
     {
       title: `Packliste: ${event.name}`,
-      subtitle: `${zeitraum}${ort} · ${event.items.length} Geräte`,
+      subtitle:
+        `${zeitraum}${ort} · ${event.items.length} ${event.items.length === 1 ? "Gerät" : "Geräte"}` +
+        (bulkEintraege.length > 0 ? ` · ${bulkEintraege.length} Mengenartikel` : ""),
       checkboxes: true,
       columns: [
         { header: "Inventarnr.", width: 1.1 },
-        { header: "Gerät", width: 2.8 },
-        { header: "Case / Standort", width: 1.6 },
-        { header: "Position", width: 1.6 },
-        { header: "Status", width: 1.2 },
+        { header: "Gerät", width: 2.6 },
+        { header: "Case / Standort", width: 1.5 },
+        { header: "Position", width: 1.4 },
+        // Breit genug für „Vollständig zurück" — Mengenartikel tragen längere
+        // Status-Texte als Geräte, und ein abgeschnittener Status auf einer
+        // ausgedruckten Packliste ist wertlos.
+        { header: "Status", width: 1.7 },
       ],
       rows,
       groupHeadings,

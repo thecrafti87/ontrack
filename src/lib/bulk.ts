@@ -65,3 +65,72 @@ export const BESTAND_BADGE: Record<BestandStatus, string> = {
   knapp: "bg-amber-500/15 text-amber-400 border-amber-500/30",
   ausreichend: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
 };
+
+// ── Mengenartikel auf der Packliste ──────────────────────────────────
+
+/**
+ * Was mit einem Mengenartikel für eine Veranstaltung passiert ist.
+ *
+ * Abgeleitet aus den Bewegungen, nicht aus einem eigenen Zählerfeld: Der
+ * Bestand selbst wird genauso geführt, und zwei Stellen, die dasselbe zählen,
+ * laufen früher oder später auseinander. Dann glaubt man der falschen.
+ */
+export type EinsatzBewegung = { delta: number; reason: string };
+
+export type EinsatzBilanz = {
+  /** Summe aller Entnahmen für diese Veranstaltung. */
+  mitgenommen: number;
+  /** Summe aller Rückgaben. */
+  zurueck: number;
+  /** Was noch draußen ist. Nach dem Abbau ist das der Fehlbestand. */
+  offen: number;
+};
+
+export function einsatzBilanz(bewegungen: EinsatzBewegung[]): EinsatzBilanz {
+  let mitgenommen = 0;
+  let zurueck = 0;
+
+  for (const bewegung of bewegungen) {
+    // Entnahmen sind negativ gespeichert; hier zählt der Betrag.
+    if (bewegung.reason === "ENTNAHME") mitgenommen += Math.abs(bewegung.delta);
+    else if (bewegung.reason === "RUECKGABE") zurueck += Math.abs(bewegung.delta);
+  }
+
+  return { mitgenommen, zurueck, offen: mitgenommen - zurueck };
+}
+
+export type EinsatzStatus = "offen" | "unterwegs" | "vollstaendig";
+
+export function einsatzStatus(bilanz: EinsatzBilanz): EinsatzStatus {
+  if (bilanz.mitgenommen === 0) return "offen";
+  return bilanz.offen > 0 ? "unterwegs" : "vollstaendig";
+}
+
+/**
+ * Menge, die im Einsatzmodus vorbelegt wird.
+ *
+ * Beim Packen fehlt, was noch nicht mit ist; beim Zurückräumen kommt zurück,
+ * was noch draußen ist. Nie negativ: Wer mehr mitgenommen hat als geplant,
+ * bekommt keine Aufforderung, etwas zurück ins Lager zu legen.
+ */
+export function vorschlagsMenge(
+  phase: string,
+  geplant: number,
+  bilanz: EinsatzBilanz
+): number {
+  if (phase === "GEPACKT") return Math.max(0, geplant - bilanz.mitgenommen);
+  if (phase === "ZURUECK") return Math.max(0, bilanz.offen);
+  return 0;
+}
+
+export const EINSATZ_STATUS_BADGE: Record<EinsatzStatus, string> = {
+  offen: "bg-surface-2 text-muted border-line",
+  unterwegs: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+  vollstaendig: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+};
+
+export const EINSATZ_STATUS_LABEL: Record<EinsatzStatus, string> = {
+  offen: "Noch nicht mit",
+  unterwegs: "Unterwegs",
+  vollstaendig: "Vollständig zurück",
+};
