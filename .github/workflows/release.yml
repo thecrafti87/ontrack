@@ -18,22 +18,29 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Die latest*.yml sind der Update-Feed: Ohne sie im Release findet
+          # eine installierte App nie eine neue Fassung. Drei verschiedene
+          # Dateinamen, deshalb kollidieren sie beim Zusammenfuehren nicht.
           - os: macos-latest
             label: macOS
             target: --mac
             artifacts: |
               release/*.dmg
               release/*.zip
+              release/latest-mac.yml
           - os: windows-latest
             label: Windows
             target: --win
-            artifacts: release/*.exe
+            artifacts: |
+              release/*.exe
+              release/latest.yml
           - os: ubuntu-latest
             label: Linux
             target: --linux
             artifacts: |
               release/*.AppImage
               release/*.deb
+              release/latest-linux.yml
 
     steps:
       - uses: actions/checkout@v4
@@ -103,7 +110,10 @@ jobs:
         working-directory: artifacts
         run: |
           ls -la
-          sha256sum * > SHA256SUMS.txt
+          # Ohne die Feed-Dateien: SHA256SUMS.txt ist zum Abgleich des
+          # heruntergeladenen Installers da, latest*.yml traegt seine
+          # Pruefsummen selbst.
+          sha256sum $(ls | grep -v '^latest.*\.yml$' | grep -v '^SHA256SUMS.txt$') > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: GitHub-Release anlegen

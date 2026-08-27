@@ -14,6 +14,36 @@ files:
   - electron/**/*
   - package.json
   - "!node_modules/**/*"
+  # Der Hauptprozess braucht electron-updater samt Abhaengigkeiten IM Paket.
+  # Ohne diese Zeilen meldet das Selbstupdate im installierten Programm
+  # "Modul nicht gefunden" — im Quelltext laeuft es, der Fehler existiert nur
+  # im Artefakt. tests/packaging.test.ts haelt die Liste vollstaendig.
+  - node_modules/argparse/**/*
+  - node_modules/builder-util-runtime/**/*
+  - node_modules/debug/**/*
+  - node_modules/electron-updater/**/*
+  - node_modules/fs-extra/**/*
+  - node_modules/graceful-fs/**/*
+  - node_modules/js-yaml/**/*
+  - node_modules/jsonfile/**/*
+  - node_modules/lazy-val/**/*
+  - node_modules/lodash.escaperegexp/**/*
+  - node_modules/lodash.isequal/**/*
+  - node_modules/ms/**/*
+  - node_modules/sax/**/*
+  - node_modules/semver/**/*
+  - node_modules/tiny-typed-emitter/**/*
+  - node_modules/universalify/**/*
+
+# Wo die App nach neuen Fassungen sieht. electron-builder schreibt daraus
+# resources/app-update.yml ins Paket und erzeugt beim Bauen die Feed-Dateien
+# latest.yml / latest-mac.yml / latest-linux.yml.
+publish:
+  provider: github
+  owner: thecrafti87
+  repo: ontrack
+  # Entwuerfe sieht weder die App noch die API — der Feed bliebe leer.
+  releaseType: release
 
 asar: true
 afterPack: build/after-pack.js

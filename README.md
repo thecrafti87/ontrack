@@ -9,6 +9,12 @@ Konzept und Feature-Liste: [KONZEPT.md](KONZEPT.md)
 doppelklicken: **[Releases](https://github.com/thecrafti87/ontrack/releases)**.
 Anleitung und Grenzen der Desktop-Version: [DESKTOP.md](DESKTOP.md).
 
+Ab Fassung 1.2.0 meldet sich die App selbst, wenn es eine neuere gibt. Unter
+Windows und Linux lädt und installiert sie das Update auf Nachfrage; auf dem
+Mac öffnet sie die Download-Seite, weil sich eine nicht notarisierte App dort
+nicht selbst ersetzen darf. Einzelheiten unter
+[Updates](DESKTOP.md#updates).
+
 **Als Server** (empfohlen, wenn Handys scannen sollen oder mehrere Personen
 gleichzeitig arbeiten): siehe [Deployment](#deployment-auf-dem-vps-docker)
 weiter unten.
@@ -21,6 +27,7 @@ Wann was passt:
 | Kamera-Scan am Handy | ❌ | ✅ |
 | Standort beim Scan (GPS) | ❌ | ✅ |
 | Mehrere Personen / Geräte | ❌ Daten bleiben lokal | ✅ |
+| Update | meldet sich selbst | `docker compose up -d --build` |
 
 ## Lokal entwickeln & testen
 

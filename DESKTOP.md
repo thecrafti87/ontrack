@@ -78,6 +78,40 @@ Danach unter **Einstellungen → App-Adresse für QR-Codes** die Adresse
 eintragen, *bevor* Etiketten gedruckt werden — sonst zeigen die QR-Codes ins
 Leere.
 
+## Updates
+
+**Windows und Linux aktualisieren sich selbst.** OnTrack sieht kurz nach dem
+Start und danach alle sechs Stunden nach, ob es eine neuere Fassung gibt.
+Wenn ja, kommt ein Hinweis mit der Frage, ob geladen werden soll — geladen
+und eingespielt wird nur nach Bestätigung. Anschließend lässt sich wählen:
+sofort neu starten oder beim nächsten Beenden einspielen. Deine Daten bleiben
+dabei erhalten.
+
+**Auf dem Mac meldet OnTrack nur, dass es etwas Neues gibt**, und öffnet auf
+Wunsch die Download-Seite. Selbst ersetzen kann sich die App dort nicht: macOS
+prüft dafür die Code-Signatur, und OnTrack ist nicht bei Apple notarisiert.
+Ein Selbstupdate würde dort nicht mit einer Fehlermeldung scheitern, sondern
+stillschweigend nichts tun — das wäre schlimmer als ein ehrlicher Hinweis. Die
+neue Fassung also herunterladen und über die alte in den Ordner **Programme**
+ziehen; der Datenordner bleibt unangetastet.
+
+Von Hand nachsehen: **Hilfe → Nach Updates suchen …**
+
+Zwei Dinge, die man wissen sollte:
+
+- Es gibt keine Meldung in dem Moment, in dem eine Version veröffentlicht
+  wird. Dafür bräuchte es einen dauerhaft offenen Kanal zu jedem Gerät.
+  OnTrack fragt statt dessen regelmäßig nach — eine neue Fassung fällt damit
+  innerhalb eines Arbeitstages auf, nicht in derselben Sekunde.
+- Ohne Internetverbindung passiert schlicht nichts. Die Prüfung beim Start
+  ist stumm: Wer OnTrack im Lager ohne Netz startet, bekommt keine
+  Fehlermeldung zu sehen.
+
+**Ab welcher Fassung das gilt:** Das Selbstupdate steckt in der App und wirkt
+deshalb erst ab der Fassung, die es mitbringt — 1.2.0. Wer 1.0.0 oder 1.1.0
+installiert hat, lädt 1.2.0 einmalig von Hand herunter. Danach meldet sich
+OnTrack von allein.
+
 ## Wo die Daten liegen
 
 Über **Datei → Datenordner öffnen** kommst du direkt hin. Die Pfade:

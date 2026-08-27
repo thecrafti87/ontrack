@@ -14,6 +14,7 @@ const http = require("node:http");
 const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
+const { pruefeAufUpdate, starteAutomatischePruefung, stoppeAutomatischePruefung } = require("./updates");
 
 app.setName("OnTrack");
 
@@ -366,6 +367,11 @@ function buildMenu() {
       role: "help",
       submenu: [
         {
+          label: "Nach Updates suchen …",
+          click: () => pruefeAufUpdate({ still: false }),
+        },
+        { type: "separator" },
+        {
           label: "Projektseite öffnen",
           click: () => shell.openExternal("https://github.com/thecrafti87/ontrack"),
         },
@@ -405,6 +411,10 @@ if (!app.requestSingleInstanceLock()) {
       configurePermissions();
       buildMenu();
       createWindow(url);
+
+      // Erst nach dem Fenster: Eine Update-Prüfung darf den Start nicht
+      // verzögern und schon gar nicht verhindern.
+      starteAutomatischePruefung();
     } catch (error) {
       dialog.showErrorBox("OnTrack konnte nicht starten", String(error?.stack || error));
       app.quit();
@@ -422,6 +432,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on("before-quit", () => {
     quitting = true;
+    stoppeAutomatischePruefung();
     stopServer();
   });
 }
