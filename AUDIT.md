@@ -89,8 +89,15 @@ Daten dir gehören, ist das zu wenig.
 
 **Umgesetzt:** `/api/export/inventar?format=csv|pdf` und
 `/api/export/packliste/[eventId]`. Der Export umfasst immer den ganzen Bestand,
-nie den eingestellten Listenausschnitt. **Offen geblieben:** die Prüfnachweise als
-PDF-Sammlung — die gehören zu den Prüfprotokollen und folgen dort.
+nie den eingestellten Listenausschnitt.
+
+**Nachgezogen (27.08.2026):** `/api/export/pruefnachweise?format=pdf|csv`,
+wahlweise für den ganzen Bestand oder ein einzelnes Gerät (`?geraet=<id>`,
+etwa bei einer Übergabe). Verlinkt auf der Wartungsseite und am Gerät. Die
+Fälligkeit wird je Prüfung berechnet, nicht vom Plan übernommen: An einer
+alten Prüfung steht damit das Datum, das damals galt. Eine nicht bestandene
+Prüfung bekommt gar keins — sie setzt die Frist nicht zurück, und ein Datum
+wäre an dieser Stelle gelogen.
 
 ### A3 · Anmeldung ungeschützt — ✅ behoben (23.08.2026)
 
@@ -131,10 +138,27 @@ Grenzfällen inklusive Schaltjahr abgesichert.
 in Server-Aktionen, die `requireUser` aufrufen und deshalb einen Request-Kontext
 brauchen; das ist eigene Vorarbeit wert.
 
-### A5 · Keine Sicherung im laufenden Betrieb
+### A5 · Keine Sicherung im laufenden Betrieb — ✅ behoben (27.08.2026)
 
 Die Desktop-App kann von Hand sichern, sonst gibt es nichts. Kein Zeitplan, keine
 Erinnerung, keine Aufbewahrung mehrerer Stände.
+
+**Umgesetzt:** `scripts/backup.mjs` plus ein zweiter Dienst in
+`docker-compose.yml`, der täglich sichert und die letzten 14 Stände aufhebt —
+ohne dass jemand daran denken muss. Eine Sicherung, die man von Hand anstoßen
+muss, ist im Ernstfall die, die niemand gemacht hat.
+
+**Der Kern ist nicht der Zeitplan, sondern `VACUUM INTO`.** Der bisher im
+README empfohlene `cp` kopiert eine Datei, in die gerade geschrieben werden
+kann; das Ergebnis ist im besten Fall veraltet und im schlechtesten
+unbrauchbar — und man merkt es erst, wenn man es braucht. `VACUUM INTO` lässt
+SQLite selbst einen in sich stimmigen Stand herausschreiben. Die Desktop-App
+nutzt jetzt denselben Weg, mit Rückfall auf das bisherige Kopieren, falls sich
+der Prisma-Client im gepackten Build nicht laden lässt.
+
+**Und ein Weg zurück:** Das README beschreibt jetzt auch das
+Wiederherstellen. Eine Sicherung, die nie zurückgespielt wurde, ist eine
+Vermutung.
 
 ---
 
@@ -257,11 +281,29 @@ Veranstaltung. Der Bestand wird **nie direkt gesetzt**, sondern ergibt sich
 aus den Bewegungen — nur so lässt sich beantworten, wohin die 40 Kabel
 gegangen sind. Knappe und leere Bestände stehen oben auf der Liste.
 
-**Bewusst offen:** Mengenartikel erscheinen **nicht** in der Packliste, nicht
-im Einsatzmodus und nicht in den Gewichts-/Stromsummen. Diese drei bauen auf
-Gerät-je-Datensatz auf; sie mit Stückzahlen zu verschränken ist ein eigener
-Umbau. Die Zuordnung „entnommen für Veranstaltung X" bildet den Zusammenhang
-vorerst ab.
+**Nachgezogen (27.08.2026) — die Insel ist angebunden.** Mengenartikel stehen
+jetzt auf der Packliste, im Einsatzmodus, in der Gewichtssumme und im
+Packlisten-PDF.
+
+Der Umbau war kleiner als befürchtet, weil er *nicht* versucht hat, Stückzahlen
+in die vier Geräte-Phasen zu pressen. 40 Kabel werden nicht einzeln aufgebaut
+und abgebaut. Was zählt, sind zwei Zeitpunkte: was ging mit, und was kam
+zurück. Die Lücke dazwischen ist der Fehlbestand — und genau der war der Grund,
+warum es Mengenartikel überhaupt gibt.
+
+Entsprechend erscheinen sie im Einsatzmodus nur in den Phasen „Packen" und
+„Zurückräumen", dort mit großen Plus-/Minus-Flächen statt eines Scans; einen
+QR-Code haben sie nicht. Geplant, mitgenommen und zurück werden **nicht** in
+eigenen Zählerfeldern geführt, sondern aus den Bewegungen abgeleitet — dieselbe
+Quelle, aus der sich der Bestand ergibt. Zwei Stellen, die dasselbe zählen,
+laufen sonst auseinander, und dann glaubt man der falschen.
+
+**Beim Gewicht ein Detail, das erst im Betrieb auffiel:** Mengenartikel zählen
+mit ihrer Stückzahl (200 Kabel wiegen im LKW mit), aber die Warnung „für x von y
+ist kein Wert hinterlegt" zählt **Einträge**, nicht Stückzahlen — sonst läse man
+„40 von 41 ohne Gewicht" und hielte die Datenlage für katastrophal, obwohl ein
+Feld fehlt. In der Strom-Warnung tauchen sie gar nicht auf: Ein DMX-Kabel
+bekommt nie eine Wattzahl, und eine dauerhaft rote Warnung ist keine.
 
 ### C2 · Gewicht und Stromlast werden erfasst, aber nicht genutzt — behoben (24.08.2026)
 
@@ -330,9 +372,8 @@ ausdrücklich, statt den Eindruck eines Fehlers zu erwecken.
 
 ### C6 · Weitere Roadmap-Punkte, unverändert offen
 
-Verleih/Checkout an Dritte · E-Mail-Benachrichtigungen · Serien-Anlage (acht gleiche
-Scheinwerfer in einem Zug) · Reparaturkosten-Historie · Betriebsstunden als
-Wartungsauslöser.
+E-Mail-Benachrichtigungen · Reparaturkosten-Historie · Betriebsstunden als
+Wartungsauslöser. (Verleih und Serien-Anlage sind inzwischen umgesetzt.)
 
 ---
 
@@ -434,7 +475,7 @@ entschieden, nicht nebenbei gemacht.
 |---|---|
 | Offline-Modus (C4) | ✅ Scan-Ablauf läuft ohne Netz, siehe C4 |
 | Kartenansicht (C5) | ✅ erledigt |
-| Verleih an Dritte | ✅ erledigt |
+| Verleih an Dritte | ✅ erledigt, seit 27.08. auch in der Konfliktprüfung |
 | E-Mail-Benachrichtigungen | ⬜ offen |
 | Betriebsstunden als Wartungsauslöser | ⬜ offen |
 
@@ -445,10 +486,17 @@ neuen Herausgabe nicht zur Auswahl. In der Geräteliste steht „Verliehen an
 …" an der Stelle, an der sonst Case oder Standort steht — verliehen schlägt
 beides, denn das Gerät ist schlicht nicht da.
 
-**Nicht verknüpft:** Ein verliehenes Gerät lässt sich weiterhin für eine
-Veranstaltung einplanen. Die Liste zeigt beides nebeneinander, eine Warnung
-beim Einplanen gibt es aber nicht. Das gehört zur Konfliktprüfung und ist
-ein eigener Schritt.
+**Verknüpft (27.08.2026).** Ein verliehenes Gerät lässt sich nicht mehr
+unbemerkt einplanen: Die Konfliktprüfung kennt jetzt beide Gründe und
+benennt sie einzeln — „bereits auf Stadtfest" und „verliehen an Meier bis
+6.9." verlangen verschiedene Entscheidungen, also gehören sie in
+verschiedene Meldungen. Sichtbar schon in der Geräteauswahl, nicht erst
+nach dem Absenden.
+
+Eine Regel darin ist keine reine Zeitraum-Rechnung: Ein **überfälliger**
+Verleih blockiert jeden Zeitraum, auch einen weit entfernten. Das Gerät ist
+faktisch weg, und niemand weiß, wann es wiederkommt — ein freier Termin in
+drei Monaten hilft dann nicht.
 
 **Zu E-Mail:** Setzt eine Mail-Infrastruktur voraus, die es nicht gibt — und
 die Desktop-Fassung könnte gar keine verschicken. Das ist keine Fleißarbeit,
@@ -475,3 +523,60 @@ Feedback-Funktion ist eingebaut, hatte aber nie eine laufende Instanz. Seit v1.0
 gibt es Desktop-Installer — der schnellste Weg zu echtem Feedback, den dieses
 Projekt je hatte. Was ein echter Nutzer nach zwei Wochen vermisst, schlägt jede
 Liste, die hier steht — auch diese.
+
+---
+
+## Nachtrag 27.08.2026 — die Reste, und ein blinder Fleck
+
+Abgearbeitet wurde, was aus den Stufen 1–5 offen geblieben war: A5
+(Sicherung), der Prüfnachweis-Export aus A2, die Packlisten-Anbindung der
+Mengenartikel aus C1 und die Verknüpfung von Verleih und Konfliktprüfung.
+Tests: 208 statt 162.
+
+### Der blinde Fleck: Die CI war seit drei Tagen rot
+
+Der Stufenplan stützt sich an mehreren Stellen darauf, dass die CI vor jedem
+Release sperrt. Sie tat es nicht. Seit dem Mengenartikel-Commit vom 24.08.
+schlugen **alle drei** Läufe auf `main` fehl — an einem einzigen
+typografischen Anführungszeichen:
+
+    Für eine Inventur den Vorgang „Korrektur" auf der Artikelseite nutzen.
+                                            ^ gerades statt „ “
+
+`react/no-unescaped-entities`, ein Fehler, kein Warnhinweis. Und weil Lint
+der **erste** Schritt im Arbeitsablauf ist, liefen in diesen drei Läufen die
+Tests überhaupt nicht — auch nicht für Offline-Puffer und Verleih. Die
+Sperre, auf die sich das Dokument beruft, war für die letzten drei Features
+faktisch abgeschaltet.
+
+Behoben. Aber die eigentliche Lehre steht nicht im Code: Ein rotes
+CI-Ergebnis, das niemand ansieht, ist schlechter als keine CI — es erzeugt
+Vertrauen, das nichts trägt.
+
+### Zweiter Fund: Die Tests liefen unter Windows nie durch
+
+`tests/eventConflicts.test.ts` löschte seine SQLite-Datei direkt nach
+`$disconnect()`. Unter Linux geht das, unter Windows gibt der Query-Engine-
+Prozess die Datei noch nicht frei — `EPERM`, und die ganze Suite gilt als
+gescheitert, obwohl jeder einzelne Test bestanden hat. Auf einem
+Windows-Rechner sah `npm test` damit immer rot aus. Behoben durch
+Wiederholversuche beim Aufräumen.
+
+### Was jetzt noch offen ist
+
+- **Kein Release seit v1.0.0 (22.08.).** Alles seither — Passwort-
+  Wiederherstellung, Anmeldebremse, Export, Einsatzmodus, Mengenartikel,
+  Offline, Karte, Verleih, und alles aus diesem Nachtrag — liegt in `main`
+  und in keinem Installer. Wer heute herunterlädt, bekommt die Fassung, von
+  der dieses Dokument sagt, man solle ihr keinen Bestand anvertrauen. Das
+  ist der billigste und wirksamste nächste Schritt.
+- **Tests für die Server-Aktionen** (A4, unverändert): Die rechnenden Teile
+  sind abgedeckt, die buchenden nicht. Case-Umbuchung, CSV-Import und jetzt
+  auch die Mengen-Buchung stecken in Server-Aktionen mit `requireUser`.
+- **E-Mail-Benachrichtigungen.** Weiterhin eine Betriebsentscheidung, keine
+  Fleißarbeit. Web Push wäre der passendere Weg — die App ist bereits eine
+  PWA mit Service Worker und bräuchte dafür keine Mail-Infrastruktur.
+- **Mengenartikel im Fortschrittsbalken.** Der Balken im Einsatzmodus zählt
+  weiterhin nur Geräte; Kabel stehen als eigener Block darunter. Das ist
+  Absicht — zwei verschiedene Zählweisen in einem Balken zu mischen wäre
+  eine Zahl, die nichts mehr bedeutet.

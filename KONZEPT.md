@@ -111,25 +111,39 @@ dokumentiert. Jede Aktion ist einem Benutzer zugeordnet und nachvollziehbar.
     diese Auswahl bei Bedarf überschrieben werden (Default = Kategorie).
     Werte stehen auf der Gerätedetailseite als "Technische Daten".
 
-## Roadmap (später)
+## Roadmap
 
-- Offline-Modus (Scans puffern, synchronisieren)
-- Mengenartikel-Verwaltung mit Entnahme/Rückgabe
-- Export Inventarliste (Excel/PDF, z. B. für Versicherung)
-- Verleih/Checkout an Personen oder Fremdfirmen
-- E-Mail-Benachrichtigungen (Wartung fällig, Fehler gemeldet)
-- Truck-Beladung: Gewichtssummen pro Event/Case
-- Kalenderansicht "Was ist wann wo im Einsatz"
+Stand 27.08.2026. Was umgesetzt ist, steht durchgestrichen — der Ausgangspunkt
+bleibt lesbar, damit nachvollziehbar ist, was ursprünglich als „später"
+eingeplant war.
+
+**Umgesetzt:**
+
+- ~~Offline-Modus (Scans puffern, synchronisieren)~~ → der Scan-Ablauf läuft
+  ohne Netz; Nachschlagen und Fotos brauchen weiterhin Verbindung
+- ~~Mengenartikel-Verwaltung mit Entnahme/Rückgabe~~ → inklusive Packliste,
+  Einsatzmodus und Gewichtssumme
+- ~~Export Inventarliste (Excel/PDF, z. B. für Versicherung)~~ → CSV und PDF,
+  dazu Packliste und Prüfnachweise
+- ~~Verleih/Checkout an Personen oder Fremdfirmen~~ → inklusive Warnung beim
+  Einplanen eines verliehenen Geräts
+- ~~Truck-Beladung: Gewichtssummen pro Event/Case~~
+- ~~Kalenderansicht "Was ist wann wo im Einsatz"~~
+- ~~Geräte klonen / Serien-Anlage (8 gleiche Lampen in einem Rutsch)~~
+- ~~Stromlast-Summe pro Event aus gepflegten Wattzahlen~~
+- ~~NFC-Tags als Alternative zum QR-Aufkleber~~ → in V1 übernommen (siehe 16a)
+
+**Offen:**
+
+- E-Mail-Benachrichtigungen (Wartung fällig, Fehler gemeldet) — setzt eine
+  Mail-Infrastruktur voraus, die es nicht gibt; Push wäre der passendere Weg
+- Push-Benachrichtigungen (Wartung fällig, Fehler gemeldet, Event-Erinnerung)
 - Mietgeräte fürs Event erfassen (Verleiher, Rückgabedatum, Fälligkeits-Warnung)
 - Aufgaben-Checklisten pro Event ("Strom legen", "Traverse hochziehen")
 - Betriebsstunden & Zähler (Lampenstunden, Akkuzyklen) als Wartungsauslöser
 - Schnellhilfe-Notizen am Gerät ("DMX-Adresse so einstellen …")
-- Geräte klonen / Serien-Anlage (8 gleiche Lampen in einem Rutsch)
-- ~~NFC-Tags als Alternative zum QR-Aufkleber~~ → in V1 übernommen (siehe 17)
 - Reparaturkosten-Historie mit Ausmusterungs-Hinweis
 - Auslastungsstatistik (Dauerläufer vs. Regalhüter)
-- Stromlast-Summe pro Event aus gepflegten Wattzahlen
-- Push-Benachrichtigungen (Wartung fällig, Fehler gemeldet, Event-Erinnerung)
 
 ### Vectorworks-Integration (recherchiert 07/2026)
 
