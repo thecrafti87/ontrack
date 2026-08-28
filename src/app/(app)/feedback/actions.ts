@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser, requireRole } from "@/lib/auth";
+import { feedbackMail, sendeMail } from "@/lib/mail";
+import { resolveBaseUrl } from "@/lib/baseUrl";
 
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_PAGE_LENGTH = 200;
@@ -24,9 +26,34 @@ export async function createFeedbackAction(page: string, message: string): Promi
 
   const pageValue = String(page ?? "").slice(0, MAX_PAGE_LENGTH);
 
-  await prisma.feedback.create({
+  const eintrag = await prisma.feedback.create({
     data: { userId: user.id, page: pageValue, message: trimmed },
   });
+
+  // Benachrichtigung — bewusst NACH dem Speichern und ohne Einfluss auf das
+  // Ergebnis. Eine Meldung ist erfasst, sobald sie in der Datenbank steht;
+  // ob die Mail durchkommt, ändert daran nichts. Wer hier scheitern liesse,
+  // verlöre Feedback wegen eines Maildienstes.
+  //
+  // Ohne eingerichteten Versand passiert still gar nichts. Genau so soll es
+  // in der Desktop-Fassung sein, die keinen Maildienst hat.
+  try {
+    const ergebnis = await sendeMail(
+      feedbackMail({
+        nachricht: trimmed,
+        autor: user.name,
+        autorMail: user.email,
+        seite: pageValue,
+        zeitpunkt: eintrag.createdAt,
+        adresse: await resolveBaseUrl(),
+      })
+    );
+    if (ergebnis.art === "fehler") {
+      console.warn("[feedback] Mail nicht zugestellt:", ergebnis.grund);
+    }
+  } catch (fehler) {
+    console.warn("[feedback] Mailversand übersprungen:", fehler);
+  }
 
   revalidatePath("/feedback");
   revalidatePath("/");

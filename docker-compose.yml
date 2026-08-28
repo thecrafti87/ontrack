@@ -4,6 +4,13 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    environment:
+      # Benachrichtigung bei neuem Feedback. Fehlt eines der beiden, wird
+      # still nicht versendet — Feedback landet trotzdem in der Datenbank.
+      ONTRACK_RESEND_KEY: "${ONTRACK_RESEND_KEY:-}"
+      ONTRACK_MAIL_TO: "${ONTRACK_MAIL_TO:-}"
+      # Ohne eigene verifizierte Domain kann das leer bleiben.
+      ONTRACK_MAIL_FROM: "${ONTRACK_MAIL_FROM:-}"
     volumes:
       # Datenbank und Uploads überleben Container-Neustarts/-Updates
       - ontrack-db:/app/prisma/data
@@ -32,6 +39,30 @@ services:
     # Die Schleife steht in scripts/backup-loop.sh — dort ist sie gewöhnliche
     # Shell und muss nicht gegen Compose-Ersetzung verteidigt werden.
     command: ["sh", "scripts/backup-loop.sh"]
+
+  # Cloudflare Tunnel — die App wird unter deiner Domain erreichbar, ohne
+  # dass ein Port nach aussen offen sein muss. Der Tunnel baut die Verbindung
+  # von innen nach aussen auf; im Router ist nichts freizugeben, und eine
+  # feste IP braucht es auch nicht.
+  #
+  # Startet nur auf Wunsch:  docker compose --profile tunnel up -d
+  # Ohne Tunnel wie bisher:  docker compose up -d
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    depends_on:
+      - ontrack
+    command: tunnel --no-autoupdate run
+    environment:
+      # Token aus dem Cloudflare-Dashboard (Zero Trust -> Networks -> Tunnels).
+      # Gehört in eine .env-Datei neben diese docker-compose.yml, nicht ins Repo.
+      #
+      # Bewusst mit Standardwert statt ":?": Der Pflicht-Operator schlägt schon
+      # beim Einlesen der Datei zu und würde auch ein "docker compose up -d"
+      # OHNE Tunnel scheitern lassen. Fehlt der Token, sagt cloudflared es
+      # selbst — aber nur dem, der den Tunnel auch starten wollte.
+      TUNNEL_TOKEN: "${TUNNEL_TOKEN:-}"
 
 volumes:
   ontrack-db:
