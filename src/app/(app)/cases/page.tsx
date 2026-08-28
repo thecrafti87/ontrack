@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser, canEdit } from "@/lib/auth";
 import { CaseTableRow } from "./CaseTableRow";
+import { EmptyState } from "@/components/EmptyState";
 
 export const metadata: Metadata = { title: "Cases" };
 
@@ -27,7 +28,18 @@ export default async function CasesPage() {
         )}
       </div>
 
-      <p className="text-sm text-muted">{cases.length} Cases</p>
+      {cases.length === 0 ? (
+        <EmptyState
+          titel="Noch keine Cases"
+          aktion={editable ? { href: "/cases/neu", text: "Erstes Case anlegen" } : undefined}
+        >
+          Ein Case ist eine Kiste mit eigenem QR-Code. Ein Scan darauf bucht den
+          ganzen Inhalt auf einmal — statt zwölf Geräte einzeln abzuhaken.
+          Praktisch für alles, was ohnehin immer zusammen fährt.
+        </EmptyState>
+      ) : (
+        <p className="text-sm text-muted">{cases.length} Cases</p>
+      )}
 
       {/* Desktop: echte Tabelle */}
       <div className="hidden md:block overflow-x-auto rounded-2xl border border-line">
@@ -51,12 +63,10 @@ export default async function CasesPage() {
             ))}
           </tbody>
         </table>
-        {cases.length === 0 && <p className="p-4 text-muted">Keine Cases gefunden.</p>}
       </div>
 
       {/* Mobil: Karten-Liste mit großen Touch-Targets */}
       <div className="md:hidden flex flex-col gap-2">
-        {cases.length === 0 && <p className="text-muted">Keine Cases gefunden.</p>}
         {cases.map((c) => (
           <Link
             key={c.id}

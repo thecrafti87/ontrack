@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { EmptyState } from "@/components/EmptyState";
 import { requireUser, canEdit } from "@/lib/auth";
 import { formatDateRange } from "@/lib/constants";
 import { CreateEventForm } from "./CreateEventForm";
@@ -129,12 +130,25 @@ export default async function EventsPage() {
     <div className="p-4 md:p-8 max-w-5xl mx-auto flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Veranstaltungen</h1>
 
+      {events.length === 0 && (
+        <EmptyState titel="Noch keine Veranstaltungen">
+          Eine Veranstaltung ist der Auftrag, für den Geräte zusammengestellt
+          werden: Name, Ort, Zeitraum — und die Packliste dazu. Sie ist die
+          Grundlage für den Einsatzmodus, in dem beim Verladen jeder Scan
+          direkt abhakt. Ohne Veranstaltung gibt es nichts abzuhaken.
+        </EmptyState>
+      )}
+
       {editable && <CreateEventForm />}
 
-      <EventGroup title="Laufend" events={laufend} progressMode="count" />
-      <EventGroup title="Anstehend" events={anstehend} progressMode="count" />
+      {events.length > 0 && (
+        <>
+          <EventGroup title="Laufend" events={laufend} progressMode="count" />
+          <EventGroup title="Anstehend" events={anstehend} progressMode="count" />
+        </>
+      )}
 
-      <details>
+      <details className={events.length === 0 ? "hidden" : undefined}>
         <summary className="font-semibold text-lg text-muted cursor-pointer select-none">
           Vergangen ({vergangen.length})
         </summary>

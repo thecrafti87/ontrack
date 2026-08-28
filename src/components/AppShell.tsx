@@ -307,24 +307,37 @@ export default function AppShell({ user, mission, children }: AppShellProps) {
             <DeviceIcon />
             Geräte
           </Link>
-          <div className="flex items-center justify-center">
-            {/* Läuft ein Einsatz, führt der große Knopf dorthin — dann ist der
-                Scan ein Arbeitsschritt und kein Nachschlagen. */}
-            <Link
-              href={mission ? "/einsatz" : "/scan"}
-              aria-label={mission ? `Einsatz: ${mission.phaseLabel}` : "QR-Scan"}
+          {/* Läuft ein Einsatz, führt der große Knopf dorthin — dann ist der
+              Scan ein Arbeitsschritt und kein Nachschlagen.
+
+              Mit Wort darunter wie die vier anderen Ziele: Ausgerechnet der
+              auffälligste Knopf war der einzige ohne Beschriftung, und ein
+              Symbol allein sagt nicht, wohin es geht. */}
+          <Link
+            href={mission ? "/einsatz" : "/scan"}
+            aria-label={mission ? `Einsatz: ${mission.phaseLabel}` : "QR-Scan"}
+            className="flex flex-col items-center justify-center gap-0.5"
+          >
+            <span
               className={`relative flex items-center justify-center size-14 -mt-6 rounded-full shadow-lg shadow-black/40 border-4 border-surface ${
                 mission ? "bg-emerald-500 text-black" : "bg-accent text-accent-fg"
               }`}
             >
               <ScanIcon />
-              {mission && (
+              {/* Erst ab eins. Eine Blase mit „0" behauptet, es gäbe etwas zu
+                  tun, und macht jede weitere Blase unglaubwürdig. */}
+              {mission && mission.gesamt - mission.erledigt > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-surface border border-emerald-500/60 text-[10px] font-bold text-emerald-300 flex items-center justify-center tabular-nums">
                   {mission.gesamt - mission.erledigt}
                 </span>
               )}
-            </Link>
-          </div>
+            </span>
+            <span
+              className={`text-xs font-medium ${mission ? "text-emerald-400" : "text-accent"}`}
+            >
+              {mission ? "Einsatz" : "Scannen"}
+            </span>
+          </Link>
           <Link
             href="/events"
             className={`flex flex-col items-center justify-center gap-0.5 text-xs font-medium ${

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
+import { EmptyState, NoMatches } from "@/components/EmptyState";
 import { requireUser, canEdit } from "@/lib/auth";
 import { DEVICE_STATUS, formatDate, type DeviceStatus } from "@/lib/constants";
 import { getMaintenanceDueDate, getMaintenanceUrgency } from "@/lib/maintenance";
@@ -80,6 +81,11 @@ export default async function GeraetePage({
   heute.setHours(0, 0, 0, 0);
 
   const totalCount = await prisma.device.count({ where });
+  // Ohne diese zweite Zahl liesse sich nicht unterscheiden, ob der Bestand
+  // leer ist oder nur der Filter nicht passt — und wer „Lege dein erstes
+  // Gerät an" liest, während 300 im Bestand stehen, hält die App für kaputt.
+  const bestandGesamt = q || status || kategorie ? await prisma.device.count() : totalCount;
+  const filterAktiv = Boolean(q || status || kategorie);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const page = Math.min(requestedPage, totalPages);
 
@@ -233,6 +239,18 @@ export default async function GeraetePage({
         />
       </Suspense>
 
+      {bestandGesamt === 0 && (
+        <EmptyState
+          titel="Noch keine Geräte"
+          aktion={canEdit(user) ? { href: "/geraete/neu", text: "Erstes Gerät anlegen" } : undefined}
+        >
+          Jedes Gerät bekommt eine Inventarnummer und damit einen QR-Code zum
+          Aufkleben. Ein Scan zeigt danach sofort, was es ist, wo es steht und
+          ob es einsatzbereit ist. Wer schon eine Liste hat, spart sich das
+          Eintippen: unter „Mehr → Import“ lässt sich eine CSV-Datei einlesen.
+        </EmptyState>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">
           {totalCount} Geräte · Seite {page} von {totalPages}
@@ -329,12 +347,12 @@ export default async function GeraetePage({
             })}
           </tbody>
         </table>
-        {devices.length === 0 && <p className="p-4 text-muted">Keine Geräte gefunden.</p>}
+        {devices.length === 0 && filterAktiv && <NoMatches was="Geräte" zuruecksetzen="/geraete" />}
       </div>
 
       {/* Mobil: kompakte zweizeilige Karten */}
       <div className="md:hidden flex flex-col gap-2">
-        {zeilen.length === 0 && <p className="text-muted">Keine Geräte gefunden.</p>}
+        {zeilen.length === 0 && filterAktiv && <NoMatches was="Geräte" zuruecksetzen="/geraete" />}
         {zeilen.map(({ device, ort, ortArt, verleih, naechster, ueberfaellig }) => {
           const st = DEVICE_STATUS[device.status as DeviceStatus];
           return (

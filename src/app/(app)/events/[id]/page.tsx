@@ -125,6 +125,67 @@ function PacklistGroups({
   );
 }
 
+/**
+ * Die Event-Seite trennt Planen von Ausführen.
+ *
+ * Vorher stand alles untereinander: „Geräte hinzufügen" direkt neben dem
+ * Abhaken, „Plan hochladen" neben der Gefahrenzone. In der Halle braucht
+ * niemand Verwaltungsknöpfe, und beim Planen stört der Fortschrittsbalken
+ * nicht — aber die Knöpfe, die den Bestand ändern, gehören dann nicht unter
+ * die Finger von jemandem, der gerade verlädt.
+ *
+ * Der Reiter steht in der Adresse, damit ein Link auf „die Packliste dieser
+ * Veranstaltung" auch dort landet und ein Neuladen nicht zurückspringt.
+ */
+const REITER = ["packliste", "planung", "plan"] as const;
+type Reiter = (typeof REITER)[number];
+
+const REITER_TITEL: Record<Reiter, string> = {
+  packliste: "Packliste",
+  planung: "Planung",
+  plan: "Hallenplan",
+};
+
+function ReiterLeiste({
+  eventId,
+  aktiv,
+  anzahlGeraete,
+  hatPlan,
+}: {
+  eventId: string;
+  aktiv: Reiter;
+  anzahlGeraete: number;
+  hatPlan: boolean;
+}) {
+  return (
+    <div className="flex gap-1 border-b border-line overflow-x-auto">
+      {REITER.map((reiter) => {
+        const an = reiter === aktiv;
+        return (
+          <Link
+            key={reiter}
+            href={reiter === "packliste" ? `/events/${eventId}` : `/events/${eventId}?tab=${reiter}`}
+            className={`px-4 py-2.5 font-semibold text-sm whitespace-nowrap -mb-px border-b-2 min-h-11 flex items-center gap-2 ${
+              an
+                ? "text-foreground border-accent"
+                : "text-muted border-transparent hover:text-foreground"
+            }`}
+            aria-current={an ? "page" : undefined}
+          >
+            {REITER_TITEL[reiter]}
+            {reiter === "packliste" && anzahlGeraete > 0 && (
+              <span className="text-xs font-normal text-muted tabular-nums">{anzahlGeraete}</span>
+            )}
+            {reiter === "plan" && !hatPlan && (
+              <span className="text-xs font-normal text-muted">–</span>
+            )}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -136,10 +197,19 @@ export async function generateMetadata({
   return { title: event.name };
 }
 
-export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EventDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const user = await requireUser();
   const { id } = await params;
+  const { tab } = await searchParams;
   const editable = canEdit(user);
+
+  const aktiverReiter: Reiter = REITER.includes(tab as Reiter) ? (tab as Reiter) : "packliste";
 
   const event = await prisma.event.findUnique({
     where: { id },
@@ -332,19 +402,6 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           {formatDateRange(event.startDate, event.endDate)}
         </p>
         {event.notes && <p className="text-sm text-muted whitespace-pre-wrap">{event.notes}</p>}
-
-        {editable && (
-          <EventEditForm
-            event={{
-              id: event.id,
-              name: event.name,
-              venue: event.venue,
-              startDate: event.startDate.toISOString().slice(0, 10),
-              endDate: event.endDate.toISOString().slice(0, 10),
-              notes: event.notes,
-            }}
-          />
-        )}
       </div>
 
       {eventEnded && notReturnedItems.length > 0 && (
@@ -360,6 +417,15 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         </div>
       )}
 
+      <ReiterLeiste
+        eventId={event.id}
+        aktiv={aktiverReiter}
+        anzahlGeraete={total + bulkRows.length}
+        hatPlan={!!event.planImage}
+      />
+
+      {aktiverReiter === "packliste" && (
+        <>
       {/* Was der LKW tragen und die Einspeisung liefern muss — steht vor der
           Packliste, weil es die Entscheidung ist, die man vorher trifft. */}
       <LoadSummaryCard
@@ -438,6 +504,27 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           editable={editable}
         />
       </div>
+        </>
+      )}
+
+      {/* ── Planung: alles, was den Bestand und die Veranstaltung ändert ── */}
+      {aktiverReiter === "planung" && (
+        <>
+      {editable && (
+        <div className="card flex flex-col gap-4">
+          <h2 className="font-semibold">Veranstaltung bearbeiten</h2>
+          <EventEditForm
+            event={{
+              id: event.id,
+              name: event.name,
+              venue: event.venue,
+              startDate: event.startDate.toISOString().slice(0, 10),
+              endDate: event.endDate.toISOString().slice(0, 10),
+              notes: event.notes,
+            }}
+          />
+        </div>
+      )}
 
       {/* Geräte hinzufügen */}
       {editable && (
@@ -460,18 +547,29 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         </p>
       </div>
 
-      {/* Veranstaltungsplan */}
-      <div className="card flex flex-col gap-4">
-        <h2 className="font-semibold">Veranstaltungsplan</h2>
-        <PlanBoard eventId={event.id} planImageUrl={planImageUrl} items={planItems} editable={editable} />
-        {editable && <PlanUploadForm eventId={event.id} hasExisting={!!event.planImage} />}
-      </div>
-
-      {/* Gefahrenzone */}
+      {/* Gefahrenzone — am Ende der Planung, nicht unter der Arbeitsliste. */}
       {user.role === "ADMIN" && (
         <div className="card border-red-500/30">
           <h2 className="font-semibold text-red-400 mb-3">Gefahrenzone</h2>
           <DeleteEventForm eventId={event.id} eventName={event.name} />
+        </div>
+      )}
+        </>
+      )}
+
+      {/* ── Hallenplan: eine Sache, ganze Breite ── */}
+      {aktiverReiter === "plan" && (
+        <div className="card flex flex-col gap-4">
+          <h2 className="font-semibold">Veranstaltungsplan</h2>
+          {!event.planImage && (
+            <p className="text-sm text-muted max-w-prose">
+              Lade einen Bühnen- oder Hallenplan hoch, um Geräte darauf zu
+              platzieren. Ein Tipp auf einen Marker öffnet das Gerät — praktisch,
+              wenn beim Aufbau jemand fragt, wo der Sidefill hinsoll.
+            </p>
+          )}
+          <PlanBoard eventId={event.id} planImageUrl={planImageUrl} items={planItems} editable={editable} />
+          {editable && <PlanUploadForm eventId={event.id} hasExisting={!!event.planImage} />}
         </div>
       )}
     </div>

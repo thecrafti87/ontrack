@@ -20,7 +20,13 @@ export function CreateLocationForm() {
           <label className="label" htmlFor="new-loc-name">
             Name
           </label>
-          <input id="new-loc-name" name="name" className="input" required />
+          <input
+            id="new-loc-name"
+            name="name"
+            className="input"
+            placeholder="z. B. Lager Regal 3"
+            required
+          />
         </div>
         <div>
           <label className="label" htmlFor="new-loc-desc">
@@ -28,19 +34,49 @@ export function CreateLocationForm() {
           </label>
           <input id="new-loc-desc" name="description" className="input" />
         </div>
-        <div>
-          <label className="label" htmlFor="new-loc-lat">
-            Breitengrad (lat)
-          </label>
-          <input id="new-loc-lat" name="lat" type="number" step="any" className="input" />
-        </div>
-        <div>
-          <label className="label" htmlFor="new-loc-lng">
-            Längengrad (lng)
-          </label>
-          <input id="new-loc-lng" name="lng" type="number" step="any" className="input" />
-        </div>
       </div>
+
+      {/* Koordinaten eingeklappt.
+          Wer einen Lagerplatz benennt, braucht sie nie — und ein Formular,
+          das mit „Breitengrad (lat)" beginnt, sieht aus wie eine
+          Datenbankmaske und nicht wie ein Werkzeug. */}
+      <details>
+        <summary className="cursor-pointer text-sm text-muted list-none underline decoration-dotted">
+          Auf der Karte zeigen (optional)
+        </summary>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+          <div>
+            <label className="label" htmlFor="new-loc-lat">
+              Breitengrad
+            </label>
+            <input
+              id="new-loc-lat"
+              name="lat"
+              type="number"
+              step="any"
+              className="input"
+              placeholder="50.0037"
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="new-loc-lng">
+              Längengrad
+            </label>
+            <input
+              id="new-loc-lng"
+              name="lng"
+              type="number"
+              step="any"
+              className="input"
+              placeholder="9.0744"
+            />
+          </div>
+          <p className="text-xs text-muted md:col-span-2">
+            Nur nötig, damit der Ort auf der Karte erscheint. Für einen
+            Lagerplatz im eigenen Haus lohnt sich das selten.
+          </p>
+        </div>
+      </details>
 
       {state?.error && (
         <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
