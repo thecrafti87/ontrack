@@ -1,72 +1,79 @@
-OnTrack **1.2.1** — der Einsatzmodus führt jetzt bis zum Ende, und jede Aktion
-sagt, dass sie gewirkt hat.
+OnTrack **1.3.0** — die App erklärt sich jetzt selbst.
 
-Diese Fassung geht auf eine echte Erstnutzung zurück: elf Minuten, zwölf
-Protokolleinträge. Was dabei schieflief, ist hier behoben.
+Zusammen mit 1.2.1 ist das die Abarbeitung einer Durchsicht der Bedienung: Wo
+muss man raten, wo muss man wissen, wo bekommt man keine Antwort? Grundlage war
+eine echte Erstnutzung, kein Katalog von Vermutungen.
 
 ## Herunterladen
 
 | System | Datei |
 | --- | --- |
-| macOS (Apple Silicon) | `OnTrack-1.2.1-arm64.dmg` |
-| macOS (Intel) | `OnTrack-1.2.1.dmg` |
-| Windows 10/11 | `OnTrack-Setup-1.2.1.exe` |
-| Linux (universell) | `OnTrack-1.2.1.AppImage` |
-| Debian / Ubuntu | `ontrack_1.2.1_amd64.deb` |
+| macOS (Apple Silicon) | `OnTrack-1.3.0-arm64.dmg` |
+| macOS (Intel) | `OnTrack-1.3.0.dmg` |
+| Windows 10/11 | `OnTrack-Setup-1.3.0.exe` |
+| Linux (universell) | `OnTrack-1.3.0.AppImage` |
+| Debian / Ubuntu | `ontrack_1.3.0_amd64.deb` |
 
-**Wer 1.2.0 installiert hat, muss hier nichts holen** — die App meldet sich
-selbst. Unter Windows und Linux lädt und installiert sie das Update auf
-Nachfrage, auf dem Mac öffnet sie diese Seite. Von Hand nachsehen:
-**Hilfe → Nach Updates suchen …**
+**Ab 1.2.0 meldet sich die App selbst** — unter Windows und Linux lädt und
+installiert sie das Update auf Nachfrage, auf dem Mac öffnet sie diese Seite.
+Von Hand: **Hilfe → Nach Updates suchen …**
 
 Die Installer sind nicht signiert. macOS: beim ersten Start Rechtsklick →
 Öffnen. Windows: SmartScreen → Weitere Informationen → Trotzdem ausführen.
 Einzelheiten in [DESKTOP.md](DESKTOP.md), Prüfsummen in `SHA256SUMS.txt`.
 
-## Ein Einsatz hat jetzt ein Ende
+## Planen und Arbeiten sind getrennt
 
-Bisher meldete die Phase „Alle Geräte abgebaut" — und blieb dann stehen. Kein
-Weg zur nächsten Phase, kein „fertig", der Scanner weiter im Bild. Ein Einsatz
-vom Vorabend lief dadurch am nächsten Tag immer noch.
+Die Seite einer Veranstaltung zeigte bisher alles gleichzeitig: „Geräte
+hinzufügen" direkt neben dem Abhaken, „Plan hochladen" neben der Gefahrenzone.
+In der Halle braucht niemand Verwaltungsknöpfe — und beim Verladen gehören die
+Knöpfe, die den Bestand ändern, nicht unter die Finger.
 
-Ist die Phase abgearbeitet, tritt der Scanner zurück und der Abschluss
-übernimmt: **„Zurückräumen beginnen"** als Hauptknopf, daneben Packliste,
-„Trotzdem weiterscannen" für Nachzügler und „Einsatz beenden". Nach der letzten
-Phase entfällt der Weiter-Knopf. Sind Kabel oder Kleinteile noch nicht
-zurückgebucht, steht das dort ausdrücklich — das ist der Fehlbestand, um den es
-geht.
+Jetzt drei Reiter:
 
-## Eine leere Packliste ist kein Einsatz
+| | |
+| --- | --- |
+| **Packliste** | Einsatz starten, Gewicht & Strom, Fortschritt, Geräte, Kabel & Kleinteile, PDF-Druck |
+| **Planung** | Veranstaltung bearbeiten, Geräte hinzufügen, Rig (MVR), Gefahrenzone |
+| **Hallenplan** | Plan hochladen, Geräte als Marker setzen |
 
-Ein Einsatz ohne Soll kann nichts abhaken: Der Fortschritt bleibt bei 0/0, jedes
-Gerät muss über einen Sonderweg aufgenommen werden, und der Abschluss kommt nie.
-Genau das war passiert.
+Der Reiter steht in der Adresse, ein Link auf die Packliste landet also auch
+dort.
 
-Die Startseite bietet in diesem Fall keine Phasen mehr an, sondern **„Erst
-Geräte einplanen"**. Und der Server lässt es unabhängig davon nicht mehr zu —
-egal, von welcher Seite gestartet wird. Mengenartikel zählen dabei mit: Eine
-Packliste aus 200 Kabeln und keinem Gerät ist eine Packliste.
+## Leere Seiten erklären, wofür es das gibt
 
-## Jede Aktion bestätigt sich
+„0 Cases · Keine Cases gefunden" beantwortet die Frage nicht, die jemand hat,
+der zum ersten Mal davorsteht. Eine leere Seite ist die beste Gelegenheit zu
+erklären — später schaut niemand mehr hin. Cases, Standorte, Geräte und
+Veranstaltungen sagen jetzt, wofür es sie gibt, und bieten den ersten Schritt
+an.
 
-- **„Einsatz starten" führt jetzt in den Einsatz.** Vorher lud die Seite nur neu
-  — man blieb stehen, nichts änderte sich sichtbar, und drückte ein zweites Mal.
-- **„Einsatz beenden"** zeigt jetzt, dass es arbeitet.
-- **Nach einer erfassten Prüfung** bleibt stehen, *was* gespeichert wurde:
-  „Prüfung vom 28.08.2026 gespeichert — Bestanden, Elektro Müller GmbH."
-  Vorher klappte das Formular nur zu; wer unsicher war, speicherte erneut — und
-  im Prüfnachweis standen zwei Einträge derselben Prüfung.
-- **Dieselbe Prüfung am selben Tag mit demselben Ergebnis** wird abgelehnt. Ein
-  *anderes* Ergebnis bleibt erlaubt: durchgefallen, repariert, bestanden ist ein
-  echter Ablauf. Bei einem Dokument, das im Schadensfall zählt, ist ein
-  doppelter Nachweis kein Schönheitsfehler.
+Dabei unterscheidet die App zwei Fälle, die vorher gleich aussahen: **„noch
+nichts da"** und **„der Filter trifft nicht"**. Wer „Lege dein erstes Gerät an"
+liest, während 300 im Bestand stehen, hält die App für kaputt.
 
-## Behoben
+## Kleinigkeiten mit Wirkung
 
-Beim Wechsel in die nächste Phase zeigte der Einsatzbildschirm kurzzeitig den
-Fortschritt der *alten* Phase — „1/1, alles zurück im Lager", obwohl in der
-neuen Phase noch nichts gebucht war. Die Daten waren korrekt, nur die Anzeige
-nicht. Behoben.
+- **Der große Knopf in der unteren Leiste hat eine Beschriftung** — „Einsatz"
+  bzw. „Scannen". Er war der auffälligste und zugleich der einzige ohne Wort.
+- **Die Blase daran erscheint erst ab eins.** Vorher meldete sie „0", sobald
+  eine Phase erledigt war — eine Blase, die null anzeigt, macht jede weitere
+  unglaubwürdig.
+- **Die Standorte-Seite beginnt nicht mehr mit einem Formular.** Erst die
+  Liste, das Anlegen hinter einem Knopf, und die Koordinaten eingeklappt unter
+  „Auf der Karte zeigen (optional)" — für einen Lagerplatz im eigenen Haus
+  braucht sie niemand.
+
+## Aus 1.2.1, falls übersprungen
+
+- **Ein Einsatz hat ein Ende.** Ist die Phase abgearbeitet, tritt der Scanner
+  zurück: „Zurückräumen beginnen" oder „Einsatz beenden". Vorher lief ein
+  Einsatz weiter, bis jemand daran dachte.
+- **Eine leere Packliste lässt sich nicht mehr abarbeiten** — es gäbe nichts
+  abzuhaken.
+- **Jede Aktion bestätigt sich.** „Einsatz starten" führt in den Einsatz, und
+  nach einer erfassten Prüfung steht da, *was* gespeichert wurde. Derselbe
+  Nachweis am selben Tag wird abgelehnt; ein anderes Ergebnis bleibt erlaubt.
 
 ## Aktualisieren
 
