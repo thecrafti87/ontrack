@@ -17,6 +17,12 @@ services:
       # Datenbank und Uploads überleben Container-Neustarts/-Updates
       - ontrack-db:/app/prisma/data
       - ontrack-uploads:/app/data/uploads
+      # Auch hier eingehängt, obwohl die App selbst nicht sichert: Sonst
+      # schreibt ein von Hand angestoßenes `node scripts/backup.mjs` in die
+      # Container-Schicht, meldet Erfolg — und die Datei ist beim nächsten
+      # Neubau weg. Eine Sicherung, die sich erfolgreich meldet und keine ist,
+      # ist schlimmer als gar keine.
+      - ontrack-backups:/app/data/backups
 
   # Sicherung im laufenden Betrieb. Läuft mit, ohne dass jemand daran denken
   # muss — eine Sicherung, die man von Hand anstoßen muss, ist im Ernstfall
