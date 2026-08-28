@@ -3,7 +3,9 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      # Aussen umstellbar, damit mehrere Dienste auf demselben Rechner
+      # nebeneinander laufen koennen (auf dem NAS ist 3000 nicht frei).
+      - "${ONTRACK_PORT:-3000}:3000"
     environment:
       # Benachrichtigung bei neuem Feedback. Fehlt eines der beiden, wird
       # still nicht versendet — Feedback landet trotzdem in der Datenbank.
