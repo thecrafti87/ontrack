@@ -12,6 +12,7 @@ import {
   ISSUE_STATUS,
   type IssueStatus,
   MAINTENANCE_RESULT,
+  formatDate,
   isMaintenanceResult,
 } from "@/lib/constants";
 import { fieldByCode, parseFieldCodes } from "@/lib/fieldCatalog";
@@ -21,6 +22,9 @@ export type ActionState =
   | {
       error?: string;
       success?: boolean;
+      /** Was gespeichert wurde — sichtbar, damit niemand sicherheitshalber
+       *  ein zweites Mal speichert. */
+      message?: string;
       /** Wechselt bei jedem Erfolg. Formulare hängen ihren React-Schlüssel daran
        *  und montieren sich neu, statt ihren Zustand in einem Effect zurückzusetzen. */
       token?: number;
@@ -653,6 +657,36 @@ export async function recordMaintenanceAction(
   const plan = await prisma.maintenancePlan.findUnique({ where: { id: planId } });
   if (!plan) return { error: "Wartungsplan nicht gefunden." };
 
+  // Dieselbe Prüfung am selben Tag mit demselben Ergebnis ist fast immer ein
+  // zweiter Klick, kein zweiter Vorgang. Genau so entstanden zwei
+  // DGUV-V3-Nachweise im Abstand von elf Sekunden — einer davon ohne Prüfer,
+  // weil das Formular beim zweiten Mal leer war. Im Nachweis-PDF stehen dann
+  // beide, und das ist ein Dokument, das im Schadensfall zählt.
+  //
+  // Ein anderes Ergebnis am selben Tag bleibt erlaubt: durchgefallen,
+  // repariert, bestanden ist ein echter Ablauf.
+  const tagBeginn = new Date(performedAt);
+  tagBeginn.setHours(0, 0, 0, 0);
+  const tagEnde = new Date(tagBeginn);
+  tagEnde.setDate(tagEnde.getDate() + 1);
+
+  const schonErfasst = await prisma.maintenanceRecord.findFirst({
+    where: {
+      planId,
+      result,
+      performedAt: { gte: tagBeginn, lt: tagEnde },
+    },
+  });
+
+  if (schonErfasst) {
+    return {
+      error:
+        `Für „${plan.title}“ ist am ${formatDate(performedAt)} bereits eine Prüfung mit ` +
+        `dem Ergebnis „${MAINTENANCE_RESULT[result].label}“ erfasst. ` +
+        `Ein zweiter gleicher Nachweis würde nur doppelt im Prüfprotokoll stehen.`,
+    };
+  }
+
   // Das Protokoll zuerst speichern: schlägt der Upload fehl, entsteht kein
   // Prüfeintrag, der einen Nachweis behauptet, den es nicht gibt.
   let filename: string | null = null;
@@ -729,7 +763,13 @@ export async function recordMaintenanceAction(
 
   revalidatePath(`/geraete/${plan.deviceId}`);
   revalidatePath("/wartung");
-  return { success: true, token: Date.now() };
+  return {
+    success: true,
+    token: Date.now(),
+    message:
+      `Prüfung vom ${formatDate(performedAt)} gespeichert — ` +
+      `${MAINTENANCE_RESULT[result].label}${testerName ? `, ${testerName}` : ""}.`,
+  };
 }
 
 /** Löscht einen Prüfeintrag. Nur Admin — es ist ein Nachweisdokument. */

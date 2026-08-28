@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
@@ -50,6 +51,26 @@ export async function startMissionAction(
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return { error: "Veranstaltung nicht gefunden." };
 
+  // Eine leere Packliste ist kein Einsatz.
+  //
+  // Ohne Soll kann nichts abgehakt werden: Der Fortschritt stünde bei 0/0,
+  // jedes gescannte Gerät müsste nachträglich aufgenommen werden, und der
+  // Abschluss käme nie. Genau so ist es passiert — „Packen" für eine
+  // Veranstaltung ohne einen einzigen Eintrag, danach dreieinhalb Minuten
+  // Ratlosigkeit.
+  const [geraete, mengen] = await Promise.all([
+    prisma.eventItem.count({ where: { eventId } }),
+    prisma.eventBulkItem.count({ where: { eventId } }),
+  ]);
+
+  if (geraete + mengen === 0) {
+    return {
+      error:
+        "Die Packliste dieser Veranstaltung ist leer — es gibt nichts abzuhaken. " +
+        "Erst Geräte einplanen, dann den Einsatz starten.",
+    };
+  }
+
   // Ein Benutzer hat höchstens einen laufenden Einsatz; ein neuer ersetzt den alten.
   await prisma.activeMission.upsert({
     where: { userId: user.id },
@@ -66,7 +87,12 @@ export async function startMissionAction(
   revalidatePath("/einsatz");
   revalidatePath("/");
   revalidatePath(`/events/${eventId}`);
-  return undefined;
+
+  // Weiterleiten statt nur neu laden. Ohne das bleibt man nach dem Klick
+  // stehen, nichts sagt „es hat geklappt", und man drückt ein zweites Mal —
+  // im Protokoll stand „Einsatz gestartet: Abbauen" zweimal im Abstand von
+  // zwei Sekunden.
+  redirect("/einsatz");
 }
 
 export async function endMissionAction(): Promise<void> {

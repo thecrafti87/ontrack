@@ -95,6 +95,23 @@ export function isMissionPhase(value: string): value is MissionPhase {
   return value in MISSION_PHASES;
 }
 
+/** Die Phasen in der Reihenfolge, in der gearbeitet wird. */
+export const MISSION_PHASE_ORDER = Object.keys(MISSION_PHASES) as MissionPhase[];
+
+/**
+ * Was nach dieser Phase drankommt — oder null nach der letzten.
+ *
+ * Ohne diese Auskunft endet ein Einsatz nie: Die Phase ist abgearbeitet, und
+ * die App weiss nicht, was sie anbieten soll. Genau das ist passiert — ein
+ * Einsatz „Abbauen" lief einen Tag lang weiter, weil es keinen Weg
+ * vorwaerts und keinen hinaus gab.
+ */
+export function nextMissionPhase(phase: MissionPhase): MissionPhase | null {
+  const stelle = MISSION_PHASE_ORDER.indexOf(phase);
+  if (stelle < 0 || stelle >= MISSION_PHASE_ORDER.length - 1) return null;
+  return MISSION_PHASE_ORDER[stelle + 1];
+}
+
 /**
  * Reihenfolge der Packlisten-Status als Zahl — geplant = 0 bis zurück = 4.
  *

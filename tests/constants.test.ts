@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   DEVICE_STATUS,
   EVENT_ITEM_STATUS,
+  MISSION_PHASES,
+  MISSION_PHASE_ORDER,
   NOT_PLANNABLE,
   NO_CATEGORY_LABEL,
+  eventItemStatusRank,
   formatDateRange,
   groupByCategory,
+  nextMissionPhase,
 } from "@/lib/constants";
 
 describe("Gruppierung nach Kategorie", () => {
@@ -79,5 +83,38 @@ describe("Status-Definitionen", () => {
     }
     expect(kette).toEqual(["GEPLANT", "GEPACKT", "AUFGEBAUT", "ABGEBAUT", "ZURUECK"]);
     expect(kette.length).toBe(Object.keys(EVENT_ITEM_STATUS).length);
+  });
+});
+
+describe("Reihenfolge der Einsatzphasen", () => {
+  it("führt vom Packen bis zum Zurückräumen", () => {
+    expect(nextMissionPhase("GEPACKT")).toBe("AUFGEBAUT");
+    expect(nextMissionPhase("AUFGEBAUT")).toBe("ABGEBAUT");
+    expect(nextMissionPhase("ABGEBAUT")).toBe("ZURUECK");
+  });
+
+  it("endet nach dem Zurückräumen", () => {
+    // Kein "danach" heißt: Der Abschluss bietet keinen nächsten Schritt an,
+    // sondern nur noch das Beenden. Gäbe es hier eine Phase, liefe der
+    // Einsatz im Kreis.
+    expect(nextMissionPhase("ZURUECK")).toBeNull();
+  });
+
+  it("deckt jede Phase ab", () => {
+    // Käme eine Phase dazu, ohne in der Reihenfolge zu stehen, bliebe der
+    // Einsatz an ihr hängen — ohne Weg vorwärts.
+    for (const phase of MISSION_PHASE_ORDER) {
+      expect(MISSION_PHASES[phase], `Phase ${phase} fehlt in MISSION_PHASES`).toBeTruthy();
+    }
+    expect(MISSION_PHASE_ORDER).toHaveLength(Object.keys(MISSION_PHASES).length);
+  });
+
+  it("hält die Reihenfolge mit den Packlisten-Status zusammen", () => {
+    // Jede Phase muss ein gültiger Zielstatus sein, sonst bucht ein Scan in
+    // einen Status, den die Packliste nicht kennt.
+    for (const phase of MISSION_PHASE_ORDER) {
+      expect(eventItemStatusRank(phase), `Phase ${phase} ist kein Packlisten-Status`)
+        .toBeGreaterThan(0);
+    }
   });
 });

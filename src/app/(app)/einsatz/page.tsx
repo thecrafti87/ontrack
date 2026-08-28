@@ -53,6 +53,8 @@ export default async function EinsatzPage() {
 
   // ── Läuft ein Einsatz? Dann nur noch arbeiten. ──
   if (mission) {
+    const mengenZeilen = await missionBulkRows(mission.event.id);
+
     return (
       <div className="p-4 md:p-8 max-w-xl mx-auto flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
@@ -60,13 +62,21 @@ export default async function EinsatzPage() {
           <EndMissionForm compact />
         </div>
 
+        {/* Der Schlüssel enthält die Phase.
+            Ein Phasenwechsel leitet auf dieselbe Route weiter; ohne
+            Neumontage behielte der Bildschirm den Fortschritt der alten
+            Phase und meldete „alles erledigt", obwohl in der neuen Phase
+            noch nichts gebucht ist. Zugleich beginnt der Verlauf leer —
+            eine neue Phase ist eine neue Aufgabe. */}
         <EinsatzClient
+          key={`${mission.id}-${mission.phase}`}
           missionId={mission.id}
           phase={mission.phase}
           eventId={mission.event.id}
           eventName={mission.event.name}
           erledigt={mission.fortschritt.erledigt}
           gesamt={mission.fortschritt.gesamt}
+          offeneMengen={mengenZeilen.reduce((summe, zeile) => summe + zeile.offen, 0)}
         />
 
         {/* Mengenartikel stehen unter der Geräteliste, nicht darin: Sie
@@ -74,7 +84,7 @@ export default async function EinsatzPage() {
         <MissionBulk
           eventId={mission.event.id}
           phase={mission.phase}
-          rows={await missionBulkRows(mission.event.id)}
+          rows={mengenZeilen}
         />
       </div>
     );
@@ -89,7 +99,7 @@ export default async function EinsatzPage() {
   // finden und nicht erst über den Umweg der Eventliste.
   const events = await prisma.event.findMany({
     where: { endDate: { gte: heute } },
-    include: { _count: { select: { items: true } } },
+    include: { _count: { select: { items: true, bulkItems: true } } },
     orderBy: { startDate: "asc" },
     take: 10,
   });
@@ -123,6 +133,9 @@ export default async function EinsatzPage() {
                 <p className="text-sm text-muted">
                   {formatDateRange(event.startDate, event.endDate)}
                   {event.venue && <> · {event.venue}</>} · {event._count.items} Geräte
+                  {event._count.bulkItems > 0 && (
+                    <> · {event._count.bulkItems} Mengenartikel</>
+                  )}
                 </p>
               </div>
               <Link href={`/events/${event.id}`} className="text-sm text-accent underline">
@@ -130,10 +143,17 @@ export default async function EinsatzPage() {
               </Link>
             </div>
 
-            {event._count.items === 0 ? (
-              <p className="text-sm text-amber-400">
-                Diese Veranstaltung hat noch keine Geräte — erst die Packliste füllen.
-              </p>
+            {event._count.items + event._count.bulkItems === 0 ? (
+              /* Kein Soll, nichts abzuhaken. Statt einer Warnung, die man
+                 wegliest, der Weg dorthin, wo es weitergeht. */
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-amber-400">
+                  Die Packliste ist leer — es gäbe nichts abzuhaken.
+                </p>
+                <Link href={`/events/${event.id}`} className="btn-secondary text-center">
+                  Erst Geräte einplanen
+                </Link>
+              </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {PHASEN.map((phase) => (

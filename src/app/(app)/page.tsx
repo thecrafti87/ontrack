@@ -38,7 +38,12 @@ export default async function DashboardPage() {
       prisma.maintenancePlan.findMany({ select: { lastDoneAt: true, intervalMonths: true } }),
       isAdmin ? prisma.user.count({ where: { approved: false } }) : Promise.resolve(0),
       isAdmin ? prisma.feedback.count({ where: { status: "OFFEN" } }) : Promise.resolve(0),
-      prisma.event.findMany({ include: { items: { select: { status: true } } } }),
+      prisma.event.findMany({
+        include: {
+          items: { select: { status: true } },
+          _count: { select: { bulkItems: true } },
+        },
+      }),
       prisma.activityLog.findMany({
         take: 8,
         orderBy: { createdAt: "desc" },
@@ -130,11 +135,28 @@ export default async function DashboardPage() {
                   Einsatz starten — danach hakt jeder Scan direkt ab.
                 </p>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {PHASEN.map((phase) => (
-                  <StartMissionForm key={phase} eventId={laufend[0]!.id} phase={phase} />
-                ))}
-              </div>
+              {/* Eine leere Packliste taugt nicht als Einsatz. Hier fehlte die
+                  Prüfung bisher — auf /einsatz gab es sie längst, und genau
+                  deshalb liess sich von hier aus ein Einsatz ohne Soll starten. */}
+              {laufend[0]!.items.length + laufend[0]!._count.bulkItems === 0 ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm text-amber-400">
+                    Die Packliste ist leer — es gäbe nichts abzuhaken.
+                  </p>
+                  <Link
+                    href={`/events/${laufend[0]!.id}`}
+                    className="btn-secondary text-center"
+                  >
+                    Erst Geräte einplanen
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {PHASEN.map((phase) => (
+                    <StartMissionForm key={phase} eventId={laufend[0]!.id} phase={phase} />
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <Link

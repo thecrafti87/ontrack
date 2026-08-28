@@ -11,7 +11,8 @@ import {
 import Link from "next/link";
 import QrScanner from "@/components/QrScanner";
 import { NfcReadButton } from "@/components/NfcReadButton";
-import { MISSION_PHASES, type MissionPhase } from "@/lib/constants";
+import { MISSION_PHASES, nextMissionPhase, type MissionPhase } from "@/lib/constants";
+import { EndMissionForm, StartMissionForm } from "./forms";
 import {
   addToMissionAction,
   scanIntoMissionAction,
@@ -33,6 +34,8 @@ type Props = {
   eventName: string;
   erledigt: number;
   gesamt: number;
+  /** Noch nicht zurueckgebuchte Stueckzahlen aus den Mengenartikeln. */
+  offeneMengen: number;
 };
 
 /**
@@ -214,8 +217,12 @@ export function EinsatzClient({
   eventName,
   erledigt,
   gesamt,
+  offeneMengen,
 }: Props) {
   const [stand, setStand] = useState({ erledigt, gesamt });
+  // Ist die Phase voll, tritt der Scanner zurueck. Wer trotzdem noch einen
+  // Nachzuegler hat, holt ihn hiermit zurueck.
+  const [weiterscannen, setWeiterscannen] = useState(false);
   const [eintraege, setEintraege] = useState<Eintrag[]>([]);
   const [manuell, setManuell] = useState("");
   const [, startTransition] = useTransition();
@@ -344,6 +351,9 @@ export function EinsatzClient({
 
   const prozent = stand.gesamt > 0 ? Math.round((stand.erledigt / stand.gesamt) * 100) : 0;
   const fertig = stand.gesamt > 0 && stand.erledigt === stand.gesamt;
+  const naechste = nextMissionPhase(phase);
+  // Scanner und Tastatureingabe verschwinden, sobald nichts mehr zu buchen ist.
+  const zeigeScanner = !fertig || weiterscannen;
 
   return (
     <div className="flex flex-col gap-4">
@@ -380,6 +390,56 @@ export function EinsatzClient({
           </p>
         )}
       </div>
+
+      {/* Der Abschluss.
+          Ist die Phase voll, ist Scannen nicht mehr die Hauptsache — der
+          nächste Schritt ist es. Ohne diesen Block endet ein Einsatz nie:
+          Man steht vor „Alle Geräte abgebaut" und bekommt weder einen Weg
+          vorwärts noch einen hinaus angeboten. */}
+      {fertig && !weiterscannen && (
+        <div className="card flex flex-col gap-3 border-emerald-500/40 bg-emerald-500/10">
+          <div>
+            <p className="font-semibold text-emerald-300">
+              {MISSION_PHASES[phase].label} abgeschlossen
+            </p>
+            <p className="text-sm text-muted mt-0.5">
+              {stand.gesamt} {stand.gesamt === 1 ? "Gerät" : "Geräte"}{" "}
+              {MISSION_PHASES[phase].action}
+              {offeneMengen > 0 && ` · ${offeneMengen} Stück Kleinteile noch offen`}.
+            </p>
+          </div>
+
+          {offeneMengen > 0 && (
+            <p className="text-sm text-amber-300">
+              ⚠️ Kabel und Kleinteile sind noch nicht vollständig gebucht — weiter
+              unten auf dieser Seite.
+            </p>
+          )}
+
+          {naechste ? (
+            <StartMissionForm eventId={eventId} phase={naechste} variant="primary" weiterText />
+          ) : (
+            <p className="text-sm text-muted">
+              Das war die letzte Phase. Der Bestand ist wieder im Lager.
+            </p>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link href={`/events/${eventId}`} className="btn-secondary flex-1 text-center">
+              Packliste ansehen
+            </Link>
+            <button
+              type="button"
+              className="btn-secondary flex-1"
+              onClick={() => setWeiterscannen(true)}
+            >
+              Trotzdem weiterscannen
+            </button>
+          </div>
+
+          <EndMissionForm />
+        </div>
+      )}
 
       {/* Verbindungszustand — ohne diesen Streifen glaubt man, gebucht zu haben,
           während die Scans nur vorgemerkt sind. */}
@@ -421,13 +481,16 @@ export function EinsatzClient({
       )}
 
       {/* Dauer-Scan */}
+      {zeigeScanner && (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted">{MISSION_PHASES[phase].hint} — es geht ohne Zwischenklick weiter.</p>
         <QrScanner onCode={verarbeite} />
         <NfcReadButton onCode={verarbeite} />
       </div>
+      )}
 
       {/* Manuelle Eingabe als Rückfallebene */}
+      {zeigeScanner && (
       <div className="card flex flex-col gap-3">
         <label className="label" htmlFor="einsatz-manuell">
           Ohne Kamera: Nummer eintippen
@@ -462,6 +525,7 @@ export function EinsatzClient({
           </button>
         </div>
       </div>
+      )}
 
       {/* Verlauf */}
       {eintraege.length > 0 && (
@@ -497,9 +561,11 @@ export function EinsatzClient({
         </div>
       )}
 
-      <Link href={`/events/${eventId}`} className="btn-secondary text-center">
-        Zur Packliste
-      </Link>
+      {zeigeScanner && (
+        <Link href={`/events/${eventId}`} className="btn-secondary text-center">
+          Zur Packliste
+        </Link>
+      )}
     </div>
   );
 }

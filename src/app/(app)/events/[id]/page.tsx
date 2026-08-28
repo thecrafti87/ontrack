@@ -370,8 +370,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
       {/* Packliste */}
       <div className="card flex flex-col gap-4">
-        {/* Der Weg in die Arbeit steht über der Liste, nicht in einem Untermenü. */}
-        {total > 0 && (
+        {/* Der Weg in die Arbeit steht über der Liste, nicht in einem Untermenü.
+            Mengenartikel zählen mit: Eine Packliste aus 200 Kabeln und keinem
+            Gerät ist eine Packliste. */}
+        {total + bulkRows.length > 0 && (
           <div className="flex flex-col gap-2 rounded-xl border border-line bg-surface-2 p-3">
             <p className="text-sm font-medium">Einsatz starten</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

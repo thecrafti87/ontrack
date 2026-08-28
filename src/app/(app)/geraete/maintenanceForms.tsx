@@ -118,6 +118,20 @@ export function RecordMaintenanceForm({
       <summary className="btn-secondary inline-block cursor-pointer list-none">
         Prüfung erfassen
       </summary>
+
+      {/* Was gespeichert wurde, bleibt stehen.
+          Bisher klappte das Formular nach dem Speichern nur zu — und wer
+          nicht sicher war, ob es geklappt hat, öffnete es und speicherte
+          erneut. Genau so entstanden zwei Nachweise derselben Prüfung im
+          Abstand von elf Sekunden. */}
+      {state?.success && state.message && (
+        <p
+          className="mt-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300"
+          role="status"
+        >
+          ✓ {state.message}
+        </p>
+      )}
       {/* Der Schlüssel wechselt bei jedem Erfolg: die Felder werden frisch
           montiert, statt ihren Zustand nachträglich zurückzusetzen. */}
       <RecordMaintenanceFields
