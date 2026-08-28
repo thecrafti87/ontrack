@@ -15,6 +15,11 @@ export async function saveSettingsAction(
   const foundOwner = String(formData.get("foundOwner") ?? "").trim();
   const foundContact = String(formData.get("foundContact") ?? "").trim();
   const appUrl = String(formData.get("appUrl") ?? "").trim().replace(/\/+$/, "");
+  // Leer = Registrierung steht wieder allen offen.
+  const registrationCode = String(formData.get("registrationCode") ?? "").trim();
+  // Eine Checkbox liefert nichts, wenn sie nicht gesetzt ist — genau richtig:
+  // Was nicht ausdrücklich eingeschaltet wurde, bleibt aus.
+  const publicReports = formData.get("publicReports") === "an" ? "an" : "aus";
 
   await prisma.setting.upsert({
     where: { key: "foundOwner" },
@@ -34,6 +39,21 @@ export async function saveSettingsAction(
     create: { key: "appUrl", value: appUrl },
   });
 
+  await prisma.setting.upsert({
+    where: { key: "registrationCode" },
+    update: { value: registrationCode },
+    create: { key: "registrationCode", value: registrationCode },
+  });
+
+  await prisma.setting.upsert({
+    where: { key: "publicReports" },
+    update: { value: publicReports },
+    create: { key: "publicReports", value: publicReports },
+  });
+
   revalidatePath("/einstellungen");
+  // Die Registrierungsseite entscheidet anhand dieser Einstellung, ob sie das
+  // Feld zeigt — sie muss den neuen Stand sofort sehen.
+  revalidatePath("/register");
   return { success: true };
 }

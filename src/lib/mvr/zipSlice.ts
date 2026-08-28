@@ -66,7 +66,7 @@ function resolveZip64Extra(
 }
 
 /** Findet die "End of Central Directory"-Signatur rückwärts im Datei-Ende. */
-async function findEocd(file: File): Promise<{ eocdOffset: number; view: DataView; indexInTail: number }> {
+async function findEocd(file: Blob): Promise<{ eocdOffset: number; view: DataView; indexInTail: number }> {
   const fileSize = file.size;
   if (fileSize < 22) throw new MvrZipError("Keine gültige MVR/ZIP-Datei.");
 
@@ -93,7 +93,7 @@ async function findEocd(file: File): Promise<{ eocdOffset: number; view: DataVie
 
 /** Central-Directory-Offset/-Größe ermitteln (inkl. Zip64-Fall über EOCD64-Locator). */
 async function resolveCentralDirectory(
-  file: File
+  file: Blob
 ): Promise<{ cdOffset: number; cdSize: number }> {
   const { eocdOffset, view, indexInTail } = await findEocd(file);
 
@@ -127,7 +127,7 @@ async function resolveCentralDirectory(
 }
 
 /** Central Directory durchsuchen und den passenden Eintrag zurückgeben (case-insensitive, endsWith-tolerant). */
-async function findEntry(file: File, entryName: string): Promise<CentralDirEntry> {
+async function findEntry(file: Blob, entryName: string): Promise<CentralDirEntry> {
   const { cdOffset, cdSize } = await resolveCentralDirectory(file);
   const cdBuf = await file.slice(cdOffset, cdOffset + cdSize).arrayBuffer();
   const cdView = new DataView(cdBuf);
@@ -172,10 +172,14 @@ async function findEntry(file: File, entryName: string): Promise<CentralDirEntry
 }
 
 /**
- * Extrahiert den Textinhalt eines ZIP-Eintrags, ohne die restliche Datei zu laden.
+ * Extrahiert einen ZIP-Eintrag als Rohdaten, ohne die restliche Datei zu laden.
  * Funktioniert unabhängig von der Gesamtgröße der ZIP-Datei.
+ *
+ * Ein Blob statt eines ArrayBuffers, damit das Ergebnis selbst wieder als ZIP
+ * gelesen werden kann — genau das braucht der GDTF-Anteil einer MVR, denn dort
+ * liegt ein Archiv im Archiv.
  */
-export async function extractZipEntry(file: File, entryName: string): Promise<string> {
+export async function extractZipEntryBlob(file: Blob, entryName: string): Promise<Blob> {
   const entry = await findEntry(file, entryName);
 
   const localHeaderBuf = await file
@@ -192,13 +196,47 @@ export async function extractZipEntry(file: File, entryName: string): Promise<st
 
   const blob = file.slice(dataStart, dataEnd);
 
-  if (entry.compressionMethod === 0) {
-    const buffer = await blob.arrayBuffer();
-    return new TextDecoder("utf-8").decode(buffer);
-  }
+  if (entry.compressionMethod === 0) return blob;
   if (entry.compressionMethod === 8) {
     const stream = blob.stream().pipeThrough(new DecompressionStream("deflate-raw"));
-    return await new Response(stream).text();
+    return await new Response(stream).blob();
   }
   throw new MvrZipError("Nicht unterstützte Komprimierungsmethode in der MVR-Datei.");
+}
+
+/**
+ * Extrahiert den Textinhalt eines ZIP-Eintrags, ohne die restliche Datei zu laden.
+ */
+export async function extractZipEntry(file: Blob, entryName: string): Promise<string> {
+  const blob = await extractZipEntryBlob(file, entryName);
+  return new TextDecoder("utf-8").decode(await blob.arrayBuffer());
+}
+
+/**
+ * Alle Einträge auflisten.
+ *
+ * Wird gebraucht, weil der Dateiname der GDTF im MVR nicht immer wörtlich dem
+ * `gdtfSpec`-Attribut der Szene entspricht — mal fehlt die Endung, mal weicht
+ * die Groß-/Kleinschreibung ab.
+ */
+export async function listZipEntries(file: Blob): Promise<string[]> {
+  const { cdOffset, cdSize } = await resolveCentralDirectory(file);
+  const cdBuf = await file.slice(cdOffset, cdOffset + cdSize).arrayBuffer();
+  const cdView = new DataView(cdBuf);
+  const cdBytes = new Uint8Array(cdBuf);
+  const decoder = new TextDecoder("utf-8");
+  const namen: string[] = [];
+
+  let pos = 0;
+  while (pos + 46 <= cdBytes.length) {
+    if (cdView.getUint32(pos, true) !== CENTRAL_DIR_SIGNATURE) break;
+    const nameLen = cdView.getUint16(pos + 28, true);
+    const extraLen = cdView.getUint16(pos + 30, true);
+    const commentLen = cdView.getUint16(pos + 32, true);
+    const nameStart = pos + 46;
+    namen.push(decoder.decode(cdBytes.slice(nameStart, nameStart + nameLen)));
+    pos = nameStart + nameLen + extraLen + commentLen;
+  }
+
+  return namen;
 }

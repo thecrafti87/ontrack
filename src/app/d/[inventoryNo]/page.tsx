@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { StoerungMelden } from "./StoerungMelden";
 
 const FALLBACK_OWNER = "OnTrack Veranstaltungstechnik";
 const FALLBACK_CONTACT = "Bitte beim Betreiber melden.";
@@ -60,11 +61,14 @@ export default async function FoundDevicePage({
 
   // Fall B: Fundmodus — keine Gerätedaten preisgeben, egal ob das Gerät existiert
   const settings = await prisma.setting.findMany({
-    where: { key: { in: ["foundOwner", "foundContact"] } },
+    where: { key: { in: ["foundOwner", "foundContact", "publicReports"] } },
   });
   const settingsMap = Object.fromEntries(settings.map((s) => [s.key, s.value]));
   const foundOwner = settingsMap.foundOwner || FALLBACK_OWNER;
   const foundContact = settingsMap.foundContact || FALLBACK_CONTACT;
+  // Standardmäßig aus: Eine öffentlich erreichbare Instanz bekommt keine
+  // offene Schreibmöglichkeit, ohne dass jemand sie ausdrücklich einschaltet.
+  const meldenMoeglich = settingsMap.publicReports === "an";
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center min-h-full px-4 py-12">
@@ -83,10 +87,15 @@ export default async function FoundDevicePage({
             <p>Eigentum von: {foundOwner}</p>
             <p className="whitespace-pre-wrap">Bitte melde den Fund: {foundContact}</p>
           </div>
-          <Link href="/login" className="btn-primary w-full">
+          <Link
+            href="/login"
+            className={meldenMoeglich ? "btn-secondary w-full" : "btn-primary w-full"}
+          >
             Anmelden
           </Link>
         </div>
+
+        {meldenMoeglich && <StoerungMelden code={inventoryNo} />}
       </div>
     </div>
   );

@@ -136,14 +136,24 @@ export default async function DeviceDetailPage({
   // Einsätze: nur relevante (noch nicht länger als 7 Tage vorbei)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const relevantEventItems = device.eventItems.filter((i) => i.event.endDate >= sevenDaysAgo);
+  // Ein laufendes Objekt hat kein Ende und bleibt deshalb immer relevant.
+  const relevantEventItems = device.eventItems.filter(
+    (i) => i.event.endDate == null || i.event.endDate >= sevenDaysAgo
+  );
 
   // Rig-Position (Soll aus MVR-Import + Montage-Ist) je Event, in dem dieses Gerät einer Fixture zugeordnet ist
-  const deviceRigFixtures = await prisma.rigFixture.findMany({ where: { deviceId: device.id } });
+  const deviceRigFixtures = await prisma.rigFixture.findMany({
+    where: { deviceId: device.id },
+    include: { event: { select: { name: true } } },
+  });
   const rigFixtureByEventId = new Map<string, (typeof deviceRigFixtures)[number]>();
   for (const f of deviceRigFixtures) {
     if (!rigFixtureByEventId.has(f.eventId)) rigFixtureByEventId.set(f.eventId, f);
   }
+  // Die eine Montage, die den Standort überschreibt: tatsächlich verbaut.
+  const montage =
+    deviceRigFixtures.find((f) => f.installStatus === "MONTIERT" || f.installStatus === "ABWEICHEND") ??
+    null;
   const RIG_STATUS_BADGE: Record<string, string> = {
     GEPLANT: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
     MONTIERT: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -274,7 +284,31 @@ export default async function DeviceDetailPage({
       {/* Standort */}
       <div className="card flex flex-col gap-4">
         <h2 className="font-semibold">Standort</h2>
-        <p>{device.location?.name ?? "Kein Standort zugewiesen"}</p>
+        {/*
+          Wer hier nach einem Scan landet, will als Erstes wissen, wo das Gerät
+          hängt. Ist es montiert, ist das die Antwort — der Lagerplatz steht
+          dann darunter und erklärt sich von selbst.
+        */}
+        {montage ? (
+          <div className="flex flex-col gap-1">
+            <p>
+              <span className="text-emerald-400">Verbaut:</span>{" "}
+              {montage.actualPosition?.trim() || montage.layerName?.trim() || "Position nicht erfasst"}
+            </p>
+            <p className="text-sm text-muted">
+              in{" "}
+              <Link href={`/events/${montage.eventId}/rig`} className="text-accent">
+                {montage.event.name}
+              </Link>
+              {montage.installStatus === "ABWEICHEND" && " · weicht vom Plan ab"}
+            </p>
+            <p className="text-sm text-muted">
+              Lager: {device.location?.name ?? "kein Standort zugewiesen"}
+            </p>
+          </div>
+        ) : (
+          <p>{device.location?.name ?? "Kein Standort zugewiesen"}</p>
+        )}
 
         {device.case && (
           <p className="text-sm text-muted">

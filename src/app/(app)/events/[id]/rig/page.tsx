@@ -211,9 +211,31 @@ export default async function RigPage({ params }: { params: Promise<{ id: string
             </p>
           )}
         </div>
-        <Link href={`/events/${eventId}`} className="btn-secondary">
-          Zur Veranstaltung
-        </Link>
+        <div className="flex gap-2 flex-wrap">
+          {total > 0 && editable && (
+            <Link href={`/events/${eventId}/rig/scannen`} className="btn-primary">
+              Montage scannen
+            </Link>
+          )}
+          {total > 0 && (
+            <Link href={`/events/${eventId}/dmx`} className="btn-secondary">
+              DMX-Adressen
+            </Link>
+          )}
+          {total > 0 && (
+            <a
+              href={`/api/export/abnahme?event=${eventId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary"
+            >
+              Abnahme (PDF)
+            </a>
+          )}
+          <Link href={`/events/${eventId}`} className="btn-secondary">
+            Zur Veranstaltung
+          </Link>
+        </div>
       </div>
 
       <RigViewToggle eventId={eventId} hasFixtures={total > 0} editable={editable}>

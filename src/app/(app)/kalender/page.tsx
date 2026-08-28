@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { formatDateRange } from "@/lib/constants";
+import { formatDate, formatDateRange } from "@/lib/constants";
 import {
   WOCHENTAGE,
   buildMonthGrid,
@@ -12,6 +12,7 @@ import {
   tagesbeginn,
   verschiebeMonat,
 } from "@/lib/calendar";
+import { istObjekt, laeuftNoch } from "@/lib/eventKind";
 
 export const metadata: Metadata = { title: "Kalender" };
 
@@ -51,7 +52,8 @@ export default async function KalenderPage({
   const events = await prisma.event.findMany({
     where: {
       startDate: { lte: new Date(rasterEnde.getFullYear(), rasterEnde.getMonth(), rasterEnde.getDate(), 23, 59, 59) },
-      endDate: { gte: rasterStart },
+      // Ein Objekt ohne Enddatum liegt in jedem Monat nach seinem Anfang.
+      OR: [{ endDate: null }, { endDate: { gte: rasterStart } }],
     },
     include: { _count: { select: { items: true } } },
     orderBy: { startDate: "asc" },
@@ -60,8 +62,23 @@ export default async function KalenderPage({
   const vorher = verschiebeMonat(jahr, monat, -1);
   const nachher = verschiebeMonat(jahr, monat, 1);
 
+  // Objekte laufen dauerhaft. Sie in jedes Tagesfeld zu schreiben, macht den
+  // Kalender unbrauchbar: Nach drei Festinstallationen ist jeder Tag voll und
+  // die tatsaechlichen Termine gehen unter. Im Raster stehen deshalb nur die
+  // beiden Tage, die wirklich Termine sind — Einbau und geplanter Rueckbau.
+  // Dass ein Objekt laeuft, steht als Zeile ueber dem Kalender.
+  const termine = events.filter((e) => !istObjekt(e.kind));
+  const laufendeObjekte = events.filter(
+    (e) => istObjekt(e.kind) && laeuftNoch(e.endDate, tagesbeginn(heute))
+  );
+
   function eventsAn(tag: Date) {
-    return events.filter((e) => tagImZeitraum(tag, e.startDate, e.endDate));
+    return events.filter((e) => {
+      if (!istObjekt(e.kind)) return tagImZeitraum(tag, e.startDate, e.endDate);
+      const t = tagesbeginn(tag).getTime();
+      if (t === tagesbeginn(e.startDate).getTime()) return true;
+      return e.endDate != null && t === tagesbeginn(e.endDate).getTime();
+    });
   }
 
   const tageMitEinsatz = wochen
@@ -93,6 +110,21 @@ export default async function KalenderPage({
             →
           </Link>
         </div>
+
+      {laufendeObjekte.length > 0 && (
+        <p className="text-sm text-muted">
+          Dauerhaft in Betrieb:{" "}
+          {laufendeObjekte.map((o, i) => (
+            <span key={o.id}>
+              {i > 0 && " · "}
+              <Link href={`/events/${o.id}`} className="text-accent">
+                {o.name}
+              </Link>{" "}
+              (seit {formatDate(o.startDate)})
+            </span>
+          ))}
+        </p>
+      )}
       </div>
 
       {events.length === 0 && (
@@ -178,9 +210,10 @@ export default async function KalenderPage({
       </div>
 
       <p className="text-xs text-muted">
-        Zeitraum {formatDateRange(monatsStart, monatsEnde)} · {events.length}{" "}
-        {events.length === 1 ? "Veranstaltung berührt" : "Veranstaltungen berühren"} diesen
-        Monat
+        Zeitraum {formatDateRange(monatsStart, monatsEnde)} · {termine.length}{" "}
+        {termine.length === 1 ? "Veranstaltung berührt" : "Veranstaltungen berühren"} diesen Monat
+        {laufendeObjekte.length > 0 &&
+          ` · ${laufendeObjekte.length} ${laufendeObjekte.length === 1 ? "Objekt läuft" : "Objekte laufen"} dauerhaft`}
       </p>
     </div>
   );

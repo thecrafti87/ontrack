@@ -61,10 +61,17 @@ export function buildMonthGrid(jahr: number, monat: number): Kalendertag[][] {
   return wochen;
 }
 
-/** Liegt der Tag im Zeitraum (beide Grenzen einschließlich, tagesgenau)? */
-export function tagImZeitraum(tag: Date, start: Date, ende: Date): boolean {
+/**
+ * Liegt der Tag im Zeitraum (beide Grenzen einschließlich, tagesgenau)?
+ *
+ * Ohne Ende gilt der Zeitraum ab dem Anfang unbegrenzt — so ist ein Objekt
+ * (Festinstallation) modelliert.
+ */
+export function tagImZeitraum(tag: Date, start: Date, ende: Date | null | undefined): boolean {
   const t = tagesbeginn(tag).getTime();
-  return t >= tagesbeginn(start).getTime() && t <= tagesbeginn(ende).getTime();
+  if (t < tagesbeginn(start).getTime()) return false;
+  if (!ende) return true;
+  return t <= tagesbeginn(ende).getTime();
 }
 
 /** Monat verschieben, ohne über Jahresgrenzen zu stolpern. */

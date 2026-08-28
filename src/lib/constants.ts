@@ -176,8 +176,20 @@ export function formatDateTime(d: Date | string | null | undefined): string {
 }
 
 /** Zeitraum kompakt formatieren — bei eintägigem Zeitraum nur ein Datum. */
-export function formatDateRange(start: Date | string, end: Date | string): string {
+/**
+ * Zeitraum in einer Zeile.
+ *
+ * Ohne Ende steht dort kein Datum, sondern der Zustand: Ein Objekt
+ * (Festinstallation) laeuft seit seinem Anfang und hat kein geplantes Ende.
+ * Ein erfundenes Datum waere an dieser Stelle besonders schaedlich — es wird
+ * gelesen und geglaubt.
+ */
+export function formatDateRange(
+  start: Date | string,
+  end: Date | string | null | undefined
+): string {
   const s = new Date(start);
+  if (!end) return `seit ${formatDate(s)}`;
   const e = new Date(end);
   if (s.toDateString() === e.toDateString()) return formatDate(s);
   return `${formatDate(s)} – ${formatDate(e)}`;

@@ -130,6 +130,10 @@ export default async function WartungPage() {
           <a href="/api/export/pruefnachweise?format=csv" className="text-accent underline">
             CSV
           </a>
+          {" · "}
+          <Link href="/wartung/plaketten" className="text-accent underline">
+            Plaketten drucken
+          </Link>
         </p>
       </div>
 

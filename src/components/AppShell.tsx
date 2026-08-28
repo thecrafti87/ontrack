@@ -45,6 +45,7 @@ const BESTAND_NAV: NavItem[] = [
   { href: "/cases", label: "Cases" },
   { href: "/standorte", label: "Standorte" },
   { href: "/wartung", label: "Wartung" },
+  { href: "/meldungen", label: "Meldungen" },
   { href: "/etiketten", label: "Etiketten" },
   { href: "/import", label: "Import" },
 ];

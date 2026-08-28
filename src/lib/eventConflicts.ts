@@ -1,12 +1,15 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { verleihUeberschneidet, tageUeberfaellig } from "./loan";
+import { istObjekt } from "./eventKind";
 
 export type EventConflict = {
   eventId: string;
   eventName: string;
+  kind: string;
   startDate: Date;
-  endDate: Date;
+  /** Fehlt bei laufenden Objekten — dann ist das Gerät dauerhaft gebunden. */
+  endDate: Date | null;
 } | null;
 
 export type LoanConflict = {
@@ -29,19 +32,31 @@ export type PlanningConflict =
 /**
  * Prüft, ob ein Gerät in einem ANDEREN Event mit überlappendem Zeitraum verplant ist
  * (Status != ZURUECK zählt als aktive Planung).
+ *
+ * Ein Objekt ohne Enddatum bindet das Gerät ab seinem Anfang dauerhaft. Das ist
+ * kein Sonderfall, sondern der eigentliche Zweck: Eine fest verbaute Lampe
+ * steht für keine Veranstaltung zur Verfügung, und wer sie einplant, soll das
+ * vorher erfahren und nicht am Aufbautag.
  */
 export async function findEventConflict(
   deviceId: string,
   excludeEventId: string,
   start: Date,
-  end: Date
+  /** Fehlt, wenn in ein laufendes Objekt geplant wird — dann ist das gesuchte
+   *  Fenster selbst nach hinten offen. */
+  end: Date | null
 ): Promise<EventConflict> {
   const conflictItem = await prisma.eventItem.findFirst({
     where: {
       deviceId,
       eventId: { not: excludeEventId },
       status: { not: "ZURUECK" },
-      event: { startDate: { lte: end }, endDate: { gte: start } },
+      event: {
+        // Bei offenem Fenster gibt es keine obere Grenze mehr, die einen
+        // spaeteren Anfang ausschliessen koennte.
+        ...(end ? { startDate: { lte: end } } : {}),
+        OR: [{ endDate: null }, { endDate: { gte: start } }],
+      },
     },
     include: { event: true },
   });
@@ -51,6 +66,7 @@ export async function findEventConflict(
   return {
     eventId: conflictItem.event.id,
     eventName: conflictItem.event.name,
+    kind: conflictItem.event.kind,
     startDate: conflictItem.event.startDate,
     endDate: conflictItem.event.endDate,
   };
@@ -66,7 +82,7 @@ export async function findEventConflict(
 export async function findLoanConflict(
   deviceId: string,
   start: Date,
-  end: Date,
+  end: Date | null,
   heute: Date = new Date()
 ): Promise<LoanConflict> {
   const offenePositionen = await prisma.loanItem.findMany({
@@ -111,7 +127,7 @@ export async function findPlanningConflict(
   deviceId: string,
   excludeEventId: string,
   start: Date,
-  end: Date,
+  end: Date | null,
   heute: Date = new Date()
 ): Promise<PlanningConflict> {
   const event = await findEventConflict(deviceId, excludeEventId, start, end);
@@ -126,7 +142,11 @@ export async function findPlanningConflict(
 /** Kurzbegründung für Fehlermeldungen und Protokolleinträge. */
 export function konfliktText(conflict: NonNullable<PlanningConflict>): string {
   if (conflict.art === "event") {
-    return `bereits auf „${conflict.event.eventName}“`;
+    // Bei einer Festinstallation ist „bereits auf" irreführend: Das Gerät wird
+    // nicht später frei, es ist verbaut.
+    return istObjekt(conflict.event.kind)
+      ? `fest verbaut in „${conflict.event.eventName}“`
+      : `bereits auf „${conflict.event.eventName}“`;
   }
 
   const { borrower, dueAt, ueberfaellig, tage } = conflict.verleih;

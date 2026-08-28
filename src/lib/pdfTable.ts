@@ -34,6 +34,17 @@ export type TableSpec = {
   /** Zeilen, die eine Gruppe einleiten (Index → Überschrift). */
   groupHeadings?: Map<number, string>;
   footerNote?: string;
+  /**
+   * Absätze vor der Tabelle — für Angaben, die keine Zeilen sind: Ort, Datum,
+   * Vorbehalte. Fett, wo es auffallen soll.
+   */
+  intro?: { text: string; bold?: boolean }[];
+  /**
+   * Unterschriftenfelder am Ende. Ein Dokument, das unterschrieben wird,
+   * braucht sichtbaren Platz dafür — sonst wird quer über die Tabelle
+   * gekritzelt.
+   */
+  signatures?: string[];
 };
 
 /**
@@ -117,6 +128,20 @@ export async function renderTablePdf(spec: TableSpec, printedAt: Date): Promise<
       }
     }
 
+    if (pageNumber === 1 && spec.intro && spec.intro.length > 0) {
+      for (const absatz of spec.intro) {
+        page.drawText(toWinAnsi(absatz.text), {
+          x: MARGIN.left,
+          y,
+          size: 9,
+          font: absatz.bold ? bold : regular,
+          color: absatz.bold ? ink : soft,
+        });
+        y -= 5 * MM;
+      }
+      y -= 2 * MM;
+    }
+
     drawHeader();
   };
 
@@ -192,6 +217,34 @@ export async function renderTablePdf(spec: TableSpec, printedAt: Date): Promise<
 
     y -= ROW_HEIGHT;
   });
+
+  // Unterschriften: zusammenhängend, notfalls auf einer neuen Seite.
+  if (spec.signatures && spec.signatures.length > 0) {
+    if (y - 26 * MM < MARGIN.bottom) {
+      page = pdf.addPage([pageSize.width, pageSize.height]);
+      pageNumber += 1;
+      y = pageSize.height - MARGIN.top;
+    }
+
+    y -= 12 * MM;
+    const spaltenBreite = contentWidth / spec.signatures.length;
+    spec.signatures.forEach((label, i) => {
+      const x = MARGIN.left + i * spaltenBreite;
+      page.drawLine({
+        start: { x, y },
+        end: { x: x + spaltenBreite - 8 * MM, y },
+        thickness: 0.8,
+        color: ink,
+      });
+      page.drawText(toWinAnsi(label), {
+        x,
+        y: y - 4 * MM,
+        size: 8,
+        font: regular,
+        color: soft,
+      });
+    });
+  }
 
   // Fußzeile auf jeder Seite
   const pages = pdf.getPages();

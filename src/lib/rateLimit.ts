@@ -100,3 +100,36 @@ export function formatRetryAfter(ms: number): string {
   if (minutes <= 1) return "einer Minute";
   return `${minutes} Minuten`;
 }
+
+// ── Meldungen ohne Anmeldung ─────────────────────────────────────────────
+
+/**
+ * Störungsmeldungen je Herkunftsadresse und Zeitfenster.
+ *
+ * Der Unterschied zur Anmeldebremse ist wichtig: Dort werden **Fehlversuche**
+ * gezählt, hier **jede** Absendung. Eine öffentliche Schreibmöglichkeit ohne
+ * Konto lässt sich nicht an einem Fehlschlag erkennen — jede Meldung sieht aus
+ * wie eine echte.
+ *
+ * Fünf in einer Viertelstunde reichen für den ehrlichen Fall: Wer wirklich
+ * mehrere defekte Lampen findet, meldet sie nicht im Sekundentakt.
+ */
+export const MAX_REPORTS_PER_ORIGIN = 5;
+
+export function checkReportAllowed(
+  originKey: string,
+  now: number = Date.now()
+): RateLimitVerdict {
+  const times = prune(`r:${originKey}`, now);
+  if (times.length < MAX_REPORTS_PER_ORIGIN) return { allowed: true };
+  const oldest = Math.min(...times);
+  return { allowed: false, retryAfterMs: WINDOW_MS - (now - oldest) };
+}
+
+export function recordReport(originKey: string, now: number = Date.now()): void {
+  const key = `r:${originKey}`;
+  prune(key, now);
+  const bucket = buckets.get(key);
+  if (bucket) bucket.times.push(now);
+  else buckets.set(key, { times: [now] });
+}

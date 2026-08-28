@@ -27,6 +27,7 @@ model User {
   mission            ActiveMission?
   bulkMovements      BulkMovement[]
   loans              Loan[]
+  handledReports     ExternalReport[]
 }
 
 model Session {
@@ -91,6 +92,7 @@ model Device {
   fieldValues  DeviceFieldValue[]
   rigFixtures  RigFixture[]
   loanItems    LoanItem[]
+  externalReports ExternalReport[]
 }
 
 model Case {
@@ -108,11 +110,18 @@ model Case {
 // ── Veranstaltungen & Packlisten ────────────────────────────────────
 
 model Event {
-  id        String   @id @default(cuid())
-  name      String
+  id   String @id @default(cuid())
+  name String
+  /// VERANSTALTUNG | OBJEKT
+  ///
+  /// Ein Objekt ist eine Festinstallation: Sie beginnt an einem Tag und laeuft,
+  /// bis jemand sie zurueckbaut. Deshalb darf `endDate` fehlen — ein erfundenes
+  /// Enddatum waere eine Behauptung, die jede Auswertung mitschleppt.
+  kind      String   @default("VERANSTALTUNG")
   venue     String?
   startDate DateTime
-  endDate   DateTime
+  /// Fehlt bei laufenden Objekten. Bei Veranstaltungen immer gesetzt.
+  endDate   DateTime?
   notes     String?
   planImage String? // Dateiname des hochgeladenen Veranstaltungsplans
   createdAt DateTime @default(now())
@@ -214,6 +223,37 @@ model Issue {
   device   Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   reporter User    @relation(fields: [reporterId], references: [id])
   photos   Photo[]
+  fromReports ExternalReport[]
+}
+
+/// Eine Störungsmeldung von außen — ohne Anmeldung, per QR-Scan am Gerät.
+///
+/// Bewusst KEINE Fehlermeldung (`Issue`), sondern eine Vorstufe: Wer ohne Konto
+/// meldet, soll kein Gerät sperren können. Erst wenn jemand aus dem Team die
+/// Meldung übernimmt, entsteht daraus eine echte Fehlermeldung — mit einem
+/// Verantwortlichen, der dafür geradesteht.
+///
+/// `code` ist das, was gescannt oder getippt wurde, auch wenn sich dazu kein
+/// Gerät finden lässt: Die öffentliche Seite darf nicht verraten, welche
+/// Inventarnummern existieren, und eine Meldung mit Zahlendreher soll trotzdem
+/// nicht verloren gehen.
+model ExternalReport {
+  id          String    @id @default(cuid())
+  code        String
+  deviceId    String?
+  description String
+  contact     String? // freiwillig — Rückfragen sind oft der halbe Befund
+  status      String    @default("NEU") // NEU | UEBERNOMMEN | VERWORFEN
+  createdAt   DateTime  @default(now())
+  handledById String?
+  handledAt   DateTime?
+  issueId     String?
+
+  device    Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  handledBy User?   @relation(fields: [handledById], references: [id], onDelete: SetNull)
+  issue     Issue?  @relation(fields: [issueId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
 }
 
 // ── Fotos ───────────────────────────────────────────────────────────
@@ -302,6 +342,7 @@ model RigFixture {
   name         String
   gdtfSpec     String?
   gdtfMode     String?
+  gdtfChannels Int? // Kanalzahl des Modus, aus der GDTF-Datei in der MVR gelesen
   layerName    String?
   className    String?
   dmxAddresses String?

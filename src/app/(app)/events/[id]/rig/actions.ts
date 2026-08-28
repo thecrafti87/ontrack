@@ -6,6 +6,7 @@ import { requireUser, canEdit } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { NOT_PLANNABLE, type DeviceStatus } from "@/lib/constants";
 import { findPlanningConflict } from "@/lib/eventConflicts";
+import { extractInventoryNo } from "@/lib/scanCode";
 
 export type ActionState = { error?: string; success?: string } | undefined;
 
@@ -15,6 +16,8 @@ export type RigFixtureInput = {
   fixtureId: string | null;
   gdtfSpec: string | null;
   gdtfMode: string | null;
+  /** Belegte Kanäle des Modus, aus der GDTF-Datei der MVR gelesen. */
+  gdtfChannels: number | null;
   layerName: string | null;
   className: string | null;
   dmxAddresses: string | null;
@@ -73,6 +76,7 @@ export async function importRigAction(
       name: f.name,
       gdtfSpec: f.gdtfSpec,
       gdtfMode: f.gdtfMode,
+      gdtfChannels: f.gdtfChannels,
       layerName: f.layerName,
       className: f.className,
       dmxAddresses: f.dmxAddresses,
@@ -338,4 +342,128 @@ export async function applyRigPositionsToPlanAction(eventId: string): Promise<Ap
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/events/${eventId}/rig`);
   return { success: `${usable.length} Positionen übertragen.` };
+}
+
+// ── Zuordnen per Scan ────────────────────────────────────────────────────
+
+/**
+ * Wie eine Zuordnung per Scan ausgegangen ist.
+ *
+ * Bewusst mehr Fälle als „hat geklappt / hat nicht": Wer auf der Leiter steht,
+ * muss ohne Nachdenken erkennen, ob er weitermachen kann. „Unbekannter Code"
+ * und „das Gerät hängt schon woanders" verlangen verschiedene Reaktionen.
+ */
+export type ScanZuordnungArt =
+  | "zugeordnet"
+  | "schon_dieses"
+  | "anderes_fixture"
+  | "unbekannt"
+  | "fehler";
+
+export type ScanZuordnung = {
+  art: ScanZuordnungArt;
+  /** Was gescannt wurde — gehört in jede Rückmeldung, sonst rät man mit. */
+  code: string;
+  geraet?: { id: string; inventoryNo: string; name: string };
+  /** Bei „anderes_fixture": wo es schon hängt. */
+  belegtVon?: string;
+  meldung: string;
+};
+
+/**
+ * Ein gescanntes Gerät einer Fixture zuordnen.
+ *
+ * Aufgelöst wird wie auf der Scan-Seite: erst Inventarnummer, dann
+ * Seriennummer — Hersteller-Barcodes tragen nur letztere.
+ *
+ * `alsMontiert` ist eine Entscheidung des Bedieners, keine Folgerung: Wer im
+ * Lager vorbereitet, ordnet zu, ohne dass etwas hängt. Deshalb wird der
+ * Montagestatus nur gesetzt, wenn es ausdrücklich verlangt wird.
+ */
+export async function assignRigFixtureByScanAction(
+  fixtureId: string,
+  code: string,
+  alsMontiert: boolean
+): Promise<ScanZuordnung> {
+  const user = await requireUser();
+  if (!canEdit(user)) {
+    return { art: "fehler", code, meldung: "Keine Berechtigung." };
+  }
+
+  const gescannt = extractInventoryNo(code).trim();
+  if (!gescannt) return { art: "fehler", code, meldung: "Leerer Code." };
+
+  const fixture = await prisma.rigFixture.findUnique({ where: { id: fixtureId } });
+  if (!fixture) return { art: "fehler", code: gescannt, meldung: "Fixture nicht gefunden." };
+
+  const device =
+    (await prisma.device.findUnique({ where: { inventoryNo: gescannt } })) ??
+    (await prisma.device.findFirst({ where: { serialNo: gescannt } }));
+
+  if (!device) {
+    return {
+      art: "unbekannt",
+      code: gescannt,
+      meldung: `${gescannt} ist weder als Inventar- noch als Seriennummer bekannt.`,
+    };
+  }
+
+  const geraet = { id: device.id, inventoryNo: device.inventoryNo, name: device.name };
+
+  if (fixture.deviceId === device.id) {
+    return {
+      art: "schon_dieses",
+      code: gescannt,
+      geraet,
+      meldung: `${device.name} war hier schon zugeordnet.`,
+    };
+  }
+
+  // Dasselbe Gerät zweimal im selben Rig wäre ein stiller Fehler: Der Plan
+  // sagt dann, eine Lampe hinge an zwei Stellen.
+  const anderswo = await prisma.rigFixture.findFirst({
+    where: { eventId: fixture.eventId, deviceId: device.id, id: { not: fixtureId } },
+    select: { name: true, layerName: true },
+  });
+  if (anderswo) {
+    const wo = anderswo.layerName?.trim()
+      ? `${anderswo.name} (${anderswo.layerName.trim()})`
+      : anderswo.name;
+    return {
+      art: "anderes_fixture",
+      code: gescannt,
+      geraet,
+      belegtVon: wo,
+      meldung: `${device.name} ist in diesem Rig schon ${wo} zugeordnet.`,
+    };
+  }
+
+  await prisma.rigFixture.update({
+    where: { id: fixtureId },
+    data: {
+      deviceId: device.id,
+      ...(alsMontiert ? { installStatus: "MONTIERT", actualPosition: null } : {}),
+    },
+  });
+
+  await logActivity({
+    userId: user.id,
+    action: alsMontiert
+      ? `Rig-Scan: ${device.name} an ${fixture.name} zugeordnet und als montiert erfasst`
+      : `Rig-Scan: ${device.name} an ${fixture.name} zugeordnet`,
+    eventId: fixture.eventId,
+    deviceId: device.id,
+  });
+
+  revalidatePath(`/events/${fixture.eventId}/rig`);
+  revalidatePath(`/geraete/${device.id}`);
+
+  return {
+    art: "zugeordnet",
+    code: gescannt,
+    geraet,
+    meldung: alsMontiert
+      ? `${device.name} → ${fixture.name}, montiert.`
+      : `${device.name} → ${fixture.name}.`,
+  };
 }

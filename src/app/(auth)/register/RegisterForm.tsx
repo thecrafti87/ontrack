@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { registerAction } from "../actions";
 
-export function RegisterForm() {
+export function RegisterForm({ einladungNoetig = false }: { einladungNoetig?: boolean }) {
   const [state, formAction, pending] = useActionState(registerAction, undefined);
 
   return (
@@ -67,6 +67,29 @@ export function RegisterForm() {
             placeholder="••••••••"
           />
         </div>
+
+        {/* Nur zeigen, wenn wirklich einer verlangt wird — ein leeres
+            Pflichtfeld auf einer Instanz ohne Code wäre eine Hürde ohne Zweck. */}
+        {einladungNoetig && (
+          <div>
+            <label htmlFor="invite" className="label">
+              Einladungscode
+            </label>
+            <input
+              id="invite"
+              name="invite"
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              required
+              className="input"
+              placeholder="z. B. KXQP-7M4T"
+            />
+            <p className="mt-1 text-xs text-muted">
+              Den Code bekommst du von der Person, die diese Instanz betreibt.
+            </p>
+          </div>
+        )}
 
         {state?.error && (
           <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">

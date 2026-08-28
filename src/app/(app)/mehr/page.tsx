@@ -62,6 +62,7 @@ export default async function MehrPage() {
       <NavRow href="/cases" icon={<BoxIcon />} label="Cases" />
       <NavRow href="/standorte" icon={<MapPinIcon />} label="Standorte" />
       <NavRow href="/wartung" icon={<WrenchIcon />} label="Wartung" />
+      <NavRow href="/meldungen" icon={<SpeechBubbleIcon />} label="Meldungen" />
       <NavRow href="/etiketten" icon={<TagIcon />} label="Etiketten" />
       <NavRow href="/import" icon={<DownloadIcon />} label="Import" />
 

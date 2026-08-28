@@ -6,6 +6,7 @@ import { EmptyState, NoMatches } from "@/components/EmptyState";
 import { requireUser, canEdit } from "@/lib/auth";
 import { DEVICE_STATUS, formatDate, type DeviceStatus } from "@/lib/constants";
 import { getMaintenanceDueDate, getMaintenanceUrgency } from "@/lib/maintenance";
+import { bestimmeOrt, ORT_PRAEFIX } from "@/lib/deviceLocation";
 import { DeviceTableRow } from "./DeviceTableRow";
 import { FilterBar } from "./FilterBar";
 
@@ -103,6 +104,19 @@ export default async function GeraetePage({
           take: 1,
         },
         maintenances: { select: { lastDoneAt: true, intervalMonths: true } },
+        // Tatsächlich montiert: Der Einbauort ist konkreter als jeder
+        // Lagerplatz — in einer Festinstallation ist er die eigentliche Antwort
+        // auf „wo ist das Gerät".
+        rigFixtures: {
+          where: { installStatus: { in: ["MONTIERT", "ABWEICHEND"] } },
+          select: {
+            actualPosition: true,
+            layerName: true,
+            event: { select: { name: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
         // Nur der nächste noch nicht beendete Einsatz — mehr braucht die Liste nicht.
         eventItems: {
           where: { event: { endDate: { gte: heute } } },
@@ -126,9 +140,10 @@ export default async function GeraetePage({
   const categories = categoryRows.map((c) => c.category as string);
 
   /**
-   * Was in der Liste wirklich zählt: Wo liegt das Gerät (Case schlägt
-   * Standort — im Case ist es konkreter), wofür ist es als Nächstes
-   * eingeplant, und ist eine Prüfung überfällig.
+   * Was in der Liste wirklich zählt: Wo ist das Gerät, wofür ist es als
+   * Nächstes eingeplant, und ist eine Prüfung überfällig. Die Rangfolge der
+   * Ortsangaben steht in `bestimmeOrt` — sie ist zu folgenreich für eine
+   * Bedingung mitten in der Seite.
    */
   const zeilen = devices.map((device) => {
     const ueberfaellig = device.maintenances.some(
@@ -136,11 +151,20 @@ export default async function GeraetePage({
     );
     const naechster = device.eventItems[0]?.event ?? null;
     const verleih = device.loanItems[0]?.loan ?? null;
+    const montage = device.rigFixtures[0] ?? null;
     return {
       device,
-      // Reihenfolge der Aussagekraft: verliehen schlägt Case schlägt Standort.
-      ort: verleih ? verleih.borrower : device.case ? device.case.name : (device.location?.name ?? null),
-      ortArt: verleih ? ("verliehen" as const) : device.case ? ("case" as const) : ("standort" as const),
+      ort: bestimmeOrt({
+        verleihAn: verleih?.borrower,
+        verbaut: montage
+          ? {
+              position: montage.actualPosition ?? montage.layerName,
+              objekt: montage.event.name,
+            }
+          : null,
+        caseName: device.case?.name,
+        standort: device.location?.name,
+      }),
       verleih,
       naechster,
       ueberfaellig,
@@ -287,7 +311,7 @@ export default async function GeraetePage({
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {zeilen.map(({ device, ort, ortArt, verleih, naechster, ueberfaellig }) => {
+            {zeilen.map(({ device, ort, verleih, naechster, ueberfaellig }) => {
               const st = DEVICE_STATUS[device.status as DeviceStatus];
               return (
                 <DeviceTableRow key={device.id} href={`/geraete/${device.id}`}>
@@ -301,11 +325,13 @@ export default async function GeraetePage({
                   <td className="px-4 py-2">
                     {ort ? (
                       <>
-                        {ortArt === "case" && <span className="text-muted">Case: </span>}
-                        {ortArt === "verliehen" && (
+                        {ort.art === "case" && <span className="text-muted">Case: </span>}
+                        {ort.art === "verliehen" && (
                           <span className="text-violet-400">Verliehen an </span>
                         )}
-                        {ort}
+                        {ort.art === "verbaut" && <span className="text-emerald-400">Verbaut: </span>}
+                        {ort.text}
+                        {ort.zusatz && <span className="text-muted"> · {ort.zusatz}</span>}
                       </>
                     ) : (
                       "–"
@@ -353,7 +379,7 @@ export default async function GeraetePage({
       {/* Mobil: kompakte zweizeilige Karten */}
       <div className="md:hidden flex flex-col gap-2">
         {zeilen.length === 0 && filterAktiv && <NoMatches was="Geräte" zuruecksetzen="/geraete" />}
-        {zeilen.map(({ device, ort, ortArt, verleih, naechster, ueberfaellig }) => {
+        {zeilen.map(({ device, ort, verleih, naechster, ueberfaellig }) => {
           const st = DEVICE_STATUS[device.status as DeviceStatus];
           return (
             <Link
@@ -368,11 +394,7 @@ export default async function GeraetePage({
                   {ort && (
                     <>
                       {" · "}
-                      {ortArt === "case"
-                        ? `Case: ${ort}`
-                        : ortArt === "verliehen"
-                          ? `Verliehen an ${ort}`
-                          : ort}
+                      {`${ORT_PRAEFIX[ort.art]} ${ort.text}`.trim()}
                     </>
                   )}
                 </p>

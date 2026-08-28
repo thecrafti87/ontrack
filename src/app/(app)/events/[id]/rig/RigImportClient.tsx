@@ -3,12 +3,13 @@
 import { useRef, useState } from "react";
 import { extractZipEntry } from "@/lib/mvr/zipSlice";
 import { parseGeneralScene, type ParsedFixture } from "@/lib/mvr/parseScene";
+import { kanaeleFuer, leseKanalzahlen, type KanalKarte } from "@/lib/mvr/readChannels";
 import { importRigAction, logRigImportSummaryAction } from "./actions";
 
 const DEFAULT_UNCHECK_PATTERN = /truss|traverse|szene|scene|support|deko|set/i;
 const CHUNK_SIZE = 100;
 
-type Phase = "upload" | "filter" | "importing" | "done";
+type Phase = "upload" | "lesen" | "filter" | "importing" | "done";
 type CountItem = { name: string; count: number };
 
 function layerKey(f: ParsedFixture): string {
@@ -36,6 +37,7 @@ export function RigImportClient({
   const [checkedClasses, setCheckedClasses] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [result, setResult] = useState<{ total: number; matched: number } | null>(null);
+  const [kanalKarte, setKanalKarte] = useState<KanalKarte>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
@@ -79,8 +81,19 @@ export function RigImportClient({
         new Set(classList.filter((c) => !DEFAULT_UNCHECK_PATTERN.test(c.name)).map((c) => c.name))
       );
       setFileName(file.name);
+
+      // Die Gerätedateien in derselben MVR sagen, wie viele Kanäle ein Modus
+      // belegt. Ohne das lässt sich später nur die Startadresse auf Konflikte
+      // prüfen, nicht der belegte Bereich.
+      setPhase("lesen");
+      setProgress({ done: 0, total: 0 });
+      const karte = await leseKanalzahlen(file, scene.fixtures, (fertig, gesamt) =>
+        setProgress({ done: fertig, total: gesamt })
+      );
+      setKanalKarte(karte);
       setPhase("filter");
     } catch (e) {
+      setPhase("upload");
       setError(e instanceof Error ? e.message : "Die Datei konnte nicht gelesen werden.");
     }
   }
@@ -120,6 +133,7 @@ export function RigImportClient({
     setCheckedClasses(new Set());
     setProgress({ done: 0, total: 0 });
     setResult(null);
+    setKanalKarte(new Map());
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -137,6 +151,7 @@ export function RigImportClient({
         fixtureId: f.fixtureId,
         gdtfSpec: f.gdtfSpec,
         gdtfMode: f.gdtfMode,
+        gdtfChannels: kanaeleFuer(kanalKarte, f.gdtfSpec, f.gdtfMode),
         layerName: f.layerName,
         className: f.className,
         dmxAddresses: f.dmxAddresses,
@@ -162,9 +177,9 @@ export function RigImportClient({
         <div className="card flex flex-col gap-4">
           <h2 className="font-semibold">Schritt 1: MVR-Datei auswählen</h2>
           <p className="text-sm text-muted">
-            Vectorworks-Rig-Datei (.mvr) auswählen. Es wird ausschließlich die
-            Szenenbeschreibung aus der ZIP-Datei gelesen — Ressourcen (GDTF/3D/Texturen)
-            werden ignoriert, die Datei selbst wird nicht gespeichert. Funktioniert mit
+            Vectorworks-Rig-Datei (.mvr) auswählen. Gelesen werden die Szenenbeschreibung
+            und aus den Gerätedateien die DMX-Kanalbelegung; 3D-Geometrie und Texturen
+            bleiben unberührt, die Datei selbst wird nicht gespeichert. Funktioniert mit
             beliebig großen Dateien.
           </p>
           <input
@@ -187,11 +202,39 @@ export function RigImportClient({
         </div>
       )}
 
+      {phase === "lesen" && (
+        <div className="card flex flex-col gap-3">
+          <h2 className="font-semibold">Gerätedaten werden gelesen…</h2>
+          <p className="text-sm text-muted">
+            {fixtures.length} Fixtures gefunden. Jetzt werden die Gerätedateien in der MVR
+            ausgewertet, um die belegten DMX-Kanäle zu ermitteln.
+          </p>
+          <div className="h-3 rounded-full bg-surface-2 overflow-hidden">
+            <div
+              className="h-full bg-accent transition-all"
+              style={{
+                width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 5}%`,
+              }}
+            />
+          </div>
+          {progress.total > 0 && (
+            <p className="text-sm text-muted">
+              {progress.done}/{progress.total} Gerätetypen
+            </p>
+          )}
+        </div>
+      )}
+
       {phase === "filter" && (
         <div className="card flex flex-col gap-4">
           <h2 className="font-semibold">Schritt 2: Filter</h2>
           <p className="text-sm text-muted">
             {fileName} · {fixtures.length} Fixtures gesamt
+          </p>
+          <p className="text-sm text-muted">
+            {kanalKarte.size > 0
+              ? `Kanalbelegung für ${kanalKarte.size} Gerätetyp${kanalKarte.size === 1 ? "" : "en"} aus der MVR gelesen.`
+              : "Keine Gerätedateien in der MVR gefunden — die DMX-Prüfung kann später nur Startadressen vergleichen."}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

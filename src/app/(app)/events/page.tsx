@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/EmptyState";
 import { requireUser, canEdit } from "@/lib/auth";
 import { formatDateRange } from "@/lib/constants";
+import { EVENT_ART, eventArt, istObjekt, laeuftNoch } from "@/lib/eventKind";
 import { CreateEventForm } from "./CreateEventForm";
 
 export const metadata: Metadata = { title: "Events" };
@@ -23,9 +24,10 @@ function endOfDay(d: Date): Date {
 type EventRow = {
   id: string;
   name: string;
+  kind: string;
   venue: string | null;
   startDate: Date;
-  endDate: Date;
+  endDate: Date | null;
   items: { status: string }[];
 };
 
@@ -72,6 +74,9 @@ function EventGroup({
                       <Link href={`/events/${event.id}`} className="font-medium hover:text-accent">
                         {event.name}
                       </Link>
+                      {istObjekt(event.kind) && (
+                        <span className="text-muted"> · {EVENT_ART[eventArt(event.kind)].label}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">{event.venue ?? "–"}</td>
                     <td className="px-4 py-3">{formatDateRange(event.startDate, event.endDate)}</td>
@@ -115,15 +120,23 @@ export default async function EventsPage() {
     include: { items: { select: { status: true } } },
   });
 
-  const laufend = events
-    .filter((e) => e.startDate <= todayEnd && e.endDate >= today)
+  // Objekte stehen fuer sich: Eine Festinstallation laeuft dauerhaft und wuerde
+  // die Liste der laufenden Veranstaltungen sonst monatelang blockieren.
+  const objekte = events
+    .filter((e) => istObjekt(e.kind) && laeuftNoch(e.endDate, today))
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-  const anstehend = events
+
+  const termine = events.filter((e) => !objekte.includes(e));
+
+  const laufend = termine
+    .filter((e) => e.startDate <= todayEnd && laeuftNoch(e.endDate, today))
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+  const anstehend = termine
     .filter((e) => e.startDate > todayEnd)
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-  const vergangen = events
-    .filter((e) => e.endDate < today)
-    .sort((a, b) => b.endDate.getTime() - a.endDate.getTime())
+  const vergangen = termine
+    .filter((e) => e.endDate != null && e.endDate < today)
+    .sort((a, b) => (b.endDate?.getTime() ?? 0) - (a.endDate?.getTime() ?? 0))
     .slice(0, 20);
 
   return (
@@ -143,6 +156,9 @@ export default async function EventsPage() {
 
       {events.length > 0 && (
         <>
+          {objekte.length > 0 && (
+            <EventGroup title="Objekte (Festinstallation)" events={objekte} progressMode="count" />
+          )}
           <EventGroup title="Laufend" events={laufend} progressMode="count" />
           <EventGroup title="Anstehend" events={anstehend} progressMode="count" />
         </>

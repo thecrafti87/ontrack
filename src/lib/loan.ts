@@ -96,7 +96,8 @@ export function offeneAnzahl(items: { returnedAt: Date | null }[]): number {
 export function verleihUeberschneidet(
   verleih: { issuedAt: Date; dueAt: Date; itemReturnedAt: Date | null },
   eventStart: Date,
-  eventEnde: Date,
+  /** Fehlt bei einem laufenden Objekt: Der Zeitraum ist dann nach hinten offen. */
+  eventEnde: Date | null | undefined,
   heute: Date = new Date()
 ): boolean {
   if (verleih.itemReturnedAt) return false;
@@ -105,7 +106,9 @@ export function verleihUeberschneidet(
   const ausgegeben = tagesbeginn(verleih.issuedAt).getTime();
   const zurueckAm = tagesbeginn(verleih.dueAt).getTime();
   const beginn = tagesbeginn(eventStart).getTime();
-  const ende = tagesbeginn(eventEnde).getTime();
 
+  if (!eventEnde) return zurueckAm >= beginn;
+
+  const ende = tagesbeginn(eventEnde).getTime();
   return ausgegeben <= ende && zurueckAm >= beginn;
 }

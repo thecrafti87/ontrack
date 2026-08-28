@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { laeuftNoch } from "@/lib/eventKind";
 import { requireUser } from "@/lib/auth";
 import { MISSION_PHASES, formatDateRange, formatDateTime, type MissionPhase } from "@/lib/constants";
 import { getMaintenanceDueDate, getMaintenanceUrgency } from "@/lib/maintenance";
@@ -57,7 +58,7 @@ export default async function DashboardPage() {
   }).length;
 
   const laufend = events
-    .filter((e) => e.startDate <= todayEnd && e.endDate >= today)
+    .filter((e) => e.startDate <= todayEnd && laeuftNoch(e.endDate, today))
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
   const anstehend = events
     .filter((e) => e.startDate > todayEnd)

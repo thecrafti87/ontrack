@@ -231,3 +231,60 @@ describe("Kombinierte Prüfung", () => {
     ).toBeNull();
   });
 });
+
+describe("Festinstallation ohne Enddatum", () => {
+  /**
+   * Der teure Fall: Eine Lampe hängt seit einem Jahr fest in einer Halle. Wer
+   * sie für ein Festival einplant, muss das vorher erfahren — nicht am
+   * Aufbautag, wenn der Transporter schon unterwegs ist.
+   */
+  beforeAll(async () => {
+    await prisma.event.create({
+      data: {
+        id: "o1",
+        name: "Stadthalle Foyer",
+        kind: "OBJEKT",
+        startDate: new Date("2025-03-01"),
+        endDate: null,
+      },
+    });
+    await prisma.eventItem.create({ data: { eventId: "o1", deviceId: "d3", status: "AUFGEBAUT" } });
+  });
+
+  it("blockiert ein Gerät auch weit in der Zukunft", async () => {
+    const konflikt = await findEventConflict(
+      "d3",
+      "e2",
+      new Date("2027-06-01"),
+      new Date("2027-06-03")
+    );
+    expect(konflikt?.eventName).toBe("Stadthalle Foyer");
+    expect(konflikt?.endDate).toBeNull();
+  });
+
+  it("blockiert nicht rückwirkend vor dem Einbau", async () => {
+    // Vor dem 01.03.2025 hing dort nichts.
+    expect(
+      await findEventConflict("d3", "e2", new Date("2024-01-01"), new Date("2024-01-05"))
+    ).toBeNull();
+  });
+
+  it("nennt die Festinstallation beim Namen", async () => {
+    const konflikt = await findPlanningConflict(
+      "d3",
+      "e2",
+      new Date("2027-06-01"),
+      new Date("2027-06-03")
+    );
+    const { konfliktText } = await import("@/lib/eventConflicts");
+    expect(konflikt).not.toBeNull();
+    // „bereits auf" würde nahelegen, das Gerät werde später frei. Wird es nicht.
+    expect(konfliktText(konflikt!)).toContain("fest verbaut");
+  });
+
+  it("findet einen Konflikt auch, wenn selbst ins Objekt geplant wird", async () => {
+    // Beim Planen in ein Objekt ist das gesuchte Fenster selbst offen.
+    const konflikt = await findEventConflict("d1", "o1", new Date("2026-10-21"), null);
+    expect(konflikt?.eventName).toBe("Stadtfest");
+  });
+});

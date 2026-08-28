@@ -232,7 +232,8 @@ export default async function EventDetailPage({
   if (!event) notFound();
 
   const today = startOfDay(new Date());
-  const eventEnded = event.endDate < today;
+  // Ein laufendes Objekt endet nicht — es ist nie "vorbei".
+  const eventEnded = event.endDate != null && event.endDate < today;
 
   const total = event.items.length;
   const packedOrLater = event.items.filter((i) => i.status !== "GEPLANT").length;
@@ -314,7 +315,10 @@ export default async function EventDetailPage({
             deviceId: { in: candidateIds },
             eventId: { not: event.id },
             status: { not: "ZURUECK" },
-            event: { startDate: { lte: event.endDate }, endDate: { gte: event.startDate } },
+            event: {
+              ...(event.endDate ? { startDate: { lte: event.endDate } } : {}),
+              OR: [{ endDate: null }, { endDate: { gte: event.startDate } }],
+            },
           },
           include: { event: true },
         })
@@ -518,8 +522,9 @@ export default async function EventDetailPage({
               id: event.id,
               name: event.name,
               venue: event.venue,
+              kind: event.kind,
               startDate: event.startDate.toISOString().slice(0, 10),
-              endDate: event.endDate.toISOString().slice(0, 10),
+              endDate: event.endDate ? event.endDate.toISOString().slice(0, 10) : "",
               notes: event.notes,
             }}
           />

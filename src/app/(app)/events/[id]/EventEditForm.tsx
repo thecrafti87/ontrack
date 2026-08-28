@@ -6,14 +6,19 @@ import { updateEventAction, type ActionState } from "../actions";
 type EventData = {
   id: string;
   name: string;
+  kind: string;
   venue: string | null;
   startDate: string; // yyyy-mm-dd
-  endDate: string; // yyyy-mm-dd
+  /** Leer bei einem laufenden Objekt. */
+  endDate: string;
   notes: string | null;
 };
 
 export function EventEditForm({ event }: { event: EventData }) {
   const [open, setOpen] = useState(false);
+  const [art, setArt] = useState<"VERANSTALTUNG" | "OBJEKT">(
+    event.kind === "OBJEKT" ? "OBJEKT" : "VERANSTALTUNG"
+  );
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     updateEventAction,
     undefined
@@ -32,6 +37,38 @@ export function EventEditForm({ event }: { event: EventData }) {
       <input type="hidden" name="id" value={event.id} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:col-span-2">
+          <p className="label">Art</p>
+          <div className="flex gap-4 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="kind"
+                value="VERANSTALTUNG"
+                className="size-4"
+                checked={art === "VERANSTALTUNG"}
+                onChange={() => setArt("VERANSTALTUNG")}
+              />
+              <span>Veranstaltung</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="kind"
+                value="OBJEKT"
+                className="size-4"
+                checked={art === "OBJEKT"}
+                onChange={() => setArt("OBJEKT")}
+              />
+              <span>Objekt (Festinstallation)</span>
+            </label>
+          </div>
+          <p className="text-sm text-muted mt-1">
+            {art === "OBJEKT"
+              ? "Läuft ab dem Anfang weiter, bis jemand sie zurückbaut. Verbaute Geräte gelten dauerhaft als belegt."
+              : "Hat einen Anfang und ein Ende. Danach kommen die Geräte zurück."}
+          </p>
+        </div>
         <div>
           <label className="label" htmlFor="edit-event-name">
             Name
@@ -59,7 +96,7 @@ export function EventEditForm({ event }: { event: EventData }) {
         </div>
         <div>
           <label className="label" htmlFor="edit-event-end">
-            Bis
+            {art === "OBJEKT" ? "Rückbau geplant (optional)" : "Bis"}
           </label>
           <input
             id="edit-event-end"
@@ -67,7 +104,7 @@ export function EventEditForm({ event }: { event: EventData }) {
             type="date"
             className="input"
             defaultValue={event.endDate}
-            required
+            required={art !== "OBJEKT"}
           />
         </div>
         <div className="md:col-span-2">

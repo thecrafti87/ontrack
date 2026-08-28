@@ -1,8 +1,8 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { herkunftsSchluessel } from "@/lib/originKey";
 import {
   createSession,
   destroySession,
@@ -16,16 +16,9 @@ import {
   formatRetryAfter,
   recordLoginFailure,
 } from "@/lib/rateLimit";
+import { pruefeEinladung } from "@/lib/registration";
 
 export type ActionState = { error?: string } | undefined;
-
-/** Herkunft des Anmeldeversuchs, soweit hinter einem Reverse-Proxy ermittelbar. */
-async function originKey(): Promise<string> {
-  const h = await headers();
-  const forwarded = h.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]!.trim();
-  return h.get("x-real-ip") ?? "lokal";
-}
 
 export async function loginAction(
   _prevState: ActionState,
@@ -37,7 +30,7 @@ export async function loginAction(
   // Die Bremse greift, bevor die Datenbank befragt wird — und unabhängig davon,
   // ob es das Konto gibt. Sonst verriete allein die Sperrmeldung, welche
   // Adressen registriert sind.
-  const origin = await originKey();
+  const origin = await herkunftsSchluessel();
   const verdict = checkLoginAllowed(email, origin);
   if (!verdict.allowed) {
     return {
@@ -94,8 +87,43 @@ export async function registerAction(
     return { error: "Diese E-Mail-Adresse ist bereits registriert." };
   }
 
-  const passwordHash = await hashPassword(password);
   const isFirstUser = (await prisma.user.count()) === 0;
+
+  // Einladungscode — nur wenn hinterlegt und nicht der allererste Benutzer.
+  //
+  // Die Prüfung steht VOR dem Hashen des Passworts: Das kostet absichtlich
+  // Rechenzeit, und wer nur Codes durchprobiert, soll sie nicht auslösen.
+  const codeEinstellung = await prisma.setting.findUnique({
+    where: { key: "registrationCode" },
+  });
+  const einladung = pruefeEinladung({
+    hinterlegt: codeEinstellung?.value,
+    eingegeben: String(formData.get("invite") ?? ""),
+    ersterBenutzer: isFirstUser,
+  });
+
+  if (!einladung.erlaubt) {
+    // Gegen Durchprobieren: dieselbe Bremse wie bei der Anmeldung, gezählt
+    // je Herkunft. Ohne sie wäre ein achtstelliger Code eine Frage von
+    // Minuten.
+    const herkunft = await herkunftsSchluessel();
+    const erlaubt = checkLoginAllowed(`einladung:${herkunft}`, herkunft);
+    if (!erlaubt.allowed) {
+      return {
+        error: `Zu viele Versuche. Bitte in ${formatRetryAfter(erlaubt.retryAfterMs)} erneut versuchen.`,
+      };
+    }
+    recordLoginFailure(`einladung:${herkunft}`, herkunft);
+
+    return {
+      error:
+        einladung.grund === "fehlt"
+          ? "Für diese Instanz wird ein Einladungscode benötigt."
+          : "Dieser Einladungscode stimmt nicht.",
+    };
+  }
+
+  const passwordHash = await hashPassword(password);
 
   const user = await prisma.user.create({
     data: {

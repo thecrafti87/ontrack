@@ -19,7 +19,15 @@ export type ActiveMissionView = {
   id: string;
   phase: MissionPhase;
   startedAt: Date;
-  event: { id: string; name: string; venue: string | null; startDate: Date; endDate: Date };
+  event: {
+    id: string;
+    name: string;
+    kind: string;
+    venue: string | null;
+    startDate: Date;
+    /** Fehlt bei laufenden Objekten. */
+    endDate: Date | null;
+  };
   fortschritt: MissionProgress;
 };
 
@@ -46,6 +54,7 @@ export async function getActiveMission(userId: string): Promise<ActiveMissionVie
     event: {
       id: mission.event.id,
       name: mission.event.name,
+      kind: mission.event.kind,
       venue: mission.event.venue,
       startDate: mission.event.startDate,
       endDate: mission.event.endDate,

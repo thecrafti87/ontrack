@@ -31,17 +31,29 @@ export async function createEventAction(
   const venue = String(formData.get("venue") ?? "").trim() || null;
   const startDate = parseRequiredDate(formData.get("startDate"));
   const endDate = parseRequiredDate(formData.get("endDate"));
+  const kind = formData.get("kind") === "OBJEKT" ? "OBJEKT" : "VERANSTALTUNG";
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
   if (!name) return { error: "Bitte einen Namen angeben." };
-  if (!startDate || !endDate) return { error: "Bitte Start- und Enddatum angeben." };
-  if (endDate < startDate) return { error: "Das Enddatum darf nicht vor dem Startdatum liegen." };
+  if (!startDate) return { error: "Bitte ein Startdatum angeben." };
+  // Ein Objekt laeuft, bis es zurueckgebaut wird — ein Enddatum ist dort
+  // erlaubt, aber nicht verlangt. Bei einer Veranstaltung fehlt es nie.
+  if (kind === "VERANSTALTUNG" && !endDate) {
+    return { error: "Bitte ein Enddatum angeben." };
+  }
+  if (endDate && endDate < startDate) {
+    return { error: "Das Enddatum darf nicht vor dem Startdatum liegen." };
+  }
 
   const event = await prisma.event.create({
-    data: { name, venue, startDate, endDate, notes },
+    data: { name, kind, venue, startDate, endDate, notes },
   });
 
-  await logActivity({ userId: user.id, action: "Veranstaltung angelegt", eventId: event.id });
+  await logActivity({
+    userId: user.id,
+    action: kind === "OBJEKT" ? "Objekt angelegt" : "Veranstaltung angelegt",
+    eventId: event.id,
+  });
 
   revalidatePath("/events");
   redirect(`/events/${event.id}`);
@@ -59,17 +71,26 @@ export async function updateEventAction(
   const venue = String(formData.get("venue") ?? "").trim() || null;
   const startDate = parseRequiredDate(formData.get("startDate"));
   const endDate = parseRequiredDate(formData.get("endDate"));
+  const kind = formData.get("kind") === "OBJEKT" ? "OBJEKT" : "VERANSTALTUNG";
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
   if (!id) return { error: "Ungültige Veranstaltung." };
   if (!name) return { error: "Bitte einen Namen angeben." };
-  if (!startDate || !endDate) return { error: "Bitte Start- und Enddatum angeben." };
-  if (endDate < startDate) return { error: "Das Enddatum darf nicht vor dem Startdatum liegen." };
+  if (!startDate) return { error: "Bitte ein Startdatum angeben." };
+  if (kind === "VERANSTALTUNG" && !endDate) {
+    return { error: "Bitte ein Enddatum angeben." };
+  }
+  if (endDate && endDate < startDate) {
+    return { error: "Das Enddatum darf nicht vor dem Startdatum liegen." };
+  }
 
   const existing = await prisma.event.findUnique({ where: { id } });
   if (!existing) return { error: "Veranstaltung nicht gefunden." };
 
-  await prisma.event.update({ where: { id }, data: { name, venue, startDate, endDate, notes } });
+  await prisma.event.update({
+    where: { id },
+    data: { name, kind, venue, startDate, endDate, notes },
+  });
 
   await logActivity({ userId: user.id, action: "Veranstaltung bearbeitet", eventId: id });
 
