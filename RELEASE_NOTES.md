@@ -1,79 +1,78 @@
-OnTrack **1.2.0** — ab dieser Fassung meldet sich die App selbst, wenn es eine
-neuere gibt.
+OnTrack **1.2.1** — der Einsatzmodus führt jetzt bis zum Ende, und jede Aktion
+sagt, dass sie gewirkt hat.
+
+Diese Fassung geht auf eine echte Erstnutzung zurück: elf Minuten, zwölf
+Protokolleinträge. Was dabei schieflief, ist hier behoben.
 
 ## Herunterladen
 
 | System | Datei |
 | --- | --- |
-| macOS (Apple Silicon) | `OnTrack-1.2.0-arm64.dmg` |
-| macOS (Intel) | `OnTrack-1.2.0.dmg` |
-| Windows 10/11 | `OnTrack-Setup-1.2.0.exe` |
-| Linux (universell) | `OnTrack-1.2.0.AppImage` |
-| Debian / Ubuntu | `ontrack_1.2.0_amd64.deb` |
+| macOS (Apple Silicon) | `OnTrack-1.2.1-arm64.dmg` |
+| macOS (Intel) | `OnTrack-1.2.1.dmg` |
+| Windows 10/11 | `OnTrack-Setup-1.2.1.exe` |
+| Linux (universell) | `OnTrack-1.2.1.AppImage` |
+| Debian / Ubuntu | `ontrack_1.2.1_amd64.deb` |
 
-Die beiden `*-mac.zip` sind dieselben App-Bundles ohne DMG-Hülle. Die Dateien
-`latest*.yml` sind der Update-Feed — die braucht nur die App, nicht du.
+**Wer 1.2.0 installiert hat, muss hier nichts holen** — die App meldet sich
+selbst. Unter Windows und Linux lädt und installiert sie das Update auf
+Nachfrage, auf dem Mac öffnet sie diese Seite. Von Hand nachsehen:
+**Hilfe → Nach Updates suchen …**
 
-Die Installer sind **nicht signiert**. macOS: beim ersten Start Rechtsklick →
+Die Installer sind nicht signiert. macOS: beim ersten Start Rechtsklick →
 Öffnen. Windows: SmartScreen → Weitere Informationen → Trotzdem ausführen.
-Beides ist in [DESKTOP.md](DESKTOP.md) erklärt, ebenso die Prüfsummen in
-`SHA256SUMS.txt`.
+Einzelheiten in [DESKTOP.md](DESKTOP.md), Prüfsummen in `SHA256SUMS.txt`.
 
-## Updates, die sich von selbst melden
+## Ein Einsatz hat jetzt ein Ende
 
-Bisher musste man wissen, dass es eine neue Fassung gibt, und sie von Hand
-holen. Ab 1.2.0 sieht OnTrack kurz nach dem Start und danach alle sechs Stunden
-nach.
+Bisher meldete die Phase „Alle Geräte abgebaut" — und blieb dann stehen. Kein
+Weg zur nächsten Phase, kein „fertig", der Scanner weiter im Bild. Ein Einsatz
+vom Vorabend lief dadurch am nächsten Tag immer noch.
 
-**Windows und Linux aktualisieren sich selbst.** Gibt es etwas Neues, fragt die
-App, ob geladen werden soll — geladen und eingespielt wird nur nach
-Bestätigung. Danach die Wahl: sofort neu starten oder beim nächsten Beenden
-einspielen. Die Daten bleiben erhalten.
+Ist die Phase abgearbeitet, tritt der Scanner zurück und der Abschluss
+übernimmt: **„Zurückräumen beginnen"** als Hauptknopf, daneben Packliste,
+„Trotzdem weiterscannen" für Nachzügler und „Einsatz beenden". Nach der letzten
+Phase entfällt der Weiter-Knopf. Sind Kabel oder Kleinteile noch nicht
+zurückgebucht, steht das dort ausdrücklich — das ist der Fehlbestand, um den es
+geht.
 
-**Auf dem Mac meldet OnTrack nur** und öffnet auf Wunsch die Download-Seite.
-Selbst ersetzen darf sich die App dort nicht: macOS prüft dafür die
-Code-Signatur, und OnTrack ist nicht bei Apple notarisiert. Ein Selbstupdate
-würde dort nicht mit einer Fehlermeldung scheitern, sondern *stillschweigend
-nichts tun* — ein ehrlicher Hinweis ist besser als ein Knopf, der nichts
-bewirkt.
+## Eine leere Packliste ist kein Einsatz
 
-Von Hand nachsehen: **Hilfe → Nach Updates suchen …**
+Ein Einsatz ohne Soll kann nichts abhaken: Der Fortschritt bleibt bei 0/0, jedes
+Gerät muss über einen Sonderweg aufgenommen werden, und der Abschluss kommt nie.
+Genau das war passiert.
 
-Zwei Dinge, die zur Ehrlichkeit gehören:
+Die Startseite bietet in diesem Fall keine Phasen mehr an, sondern **„Erst
+Geräte einplanen"**. Und der Server lässt es unabhängig davon nicht mehr zu —
+egal, von welcher Seite gestartet wird. Mengenartikel zählen dabei mit: Eine
+Packliste aus 200 Kabeln und keinem Gerät ist eine Packliste.
 
-- Es gibt **keine Meldung in dem Moment**, in dem eine Version veröffentlicht
-  wird — dafür bräuchte es einen dauerhaft offenen Kanal zu jedem Gerät.
-  OnTrack fragt regelmäßig nach; eine neue Fassung fällt innerhalb eines
-  Arbeitstages auf, nicht in derselben Sekunde.
-- Die Prüfung beim Start ist **stumm**. Wer OnTrack im Lager ohne Netz
-  startet, bekommt keine Fehlermeldung — nur wer von Hand nachsieht, erfährt,
-  dass die Verbindung fehlt.
+## Jede Aktion bestätigt sich
 
-**Einmal noch von Hand:** Das Selbstupdate steckt in der App und wirkt deshalb
-erst ab der Fassung, die es mitbringt. Wer 1.0.0 oder 1.1.0 installiert hat,
-lädt 1.2.0 einmalig hier herunter. Danach meldet sich OnTrack von allein.
+- **„Einsatz starten" führt jetzt in den Einsatz.** Vorher lud die Seite nur neu
+  — man blieb stehen, nichts änderte sich sichtbar, und drückte ein zweites Mal.
+- **„Einsatz beenden"** zeigt jetzt, dass es arbeitet.
+- **Nach einer erfassten Prüfung** bleibt stehen, *was* gespeichert wurde:
+  „Prüfung vom 28.08.2026 gespeichert — Bestanden, Elektro Müller GmbH."
+  Vorher klappte das Formular nur zu; wer unsicher war, speicherte erneut — und
+  im Prüfnachweis standen zwei Einträge derselben Prüfung.
+- **Dieselbe Prüfung am selben Tag mit demselben Ergebnis** wird abgelehnt. Ein
+  *anderes* Ergebnis bleibt erlaubt: durchgefallen, repariert, bestanden ist ein
+  echter Ablauf. Bei einem Dokument, das im Schadensfall zählt, ist ein
+  doppelter Nachweis kein Schönheitsfehler.
 
-## Was in 1.1.0 dazukam
+## Behoben
 
-Falls du direkt von 1.0.0 kommst — dazwischen liegt die Abarbeitung einer
-kritischen Durchsicht der ganzen App ([AUDIT.md](AUDIT.md)):
-
-- **Ein vergessenes Passwort sperrt nicht mehr aus.** Eigene Passwortänderung,
-  Zurücksetzen durch den Admin.
-- **Die Daten kommen wieder heraus.** Inventar als CSV und PDF, Packliste als
-  Druckvorlage, Prüfnachweise für die DGUV-V3-Ablage.
-- **Der Einsatzmodus:** ein laufender Auftrag statt vieler Bildschirme — jeder
-  Scan hakt direkt ab, mit Ton und Fortschritt.
-- **Ohne Empfang weiterarbeiten:** Scans werden vorgemerkt und nachgebucht.
-- **Kabel und Kleinteile** nach Stückzahl, auf der Packliste und im
-  Einsatzmodus. **Verleih** an Dritte. **Kalender** und **Karte**.
-- **Sicherung**, die im Server-Betrieb von allein läuft.
+Beim Wechsel in die nächste Phase zeigte der Einsatzbildschirm kurzzeitig den
+Fortschritt der *alten* Phase — „1/1, alles zurück im Lager", obwohl in der
+neuen Phase noch nichts gebucht war. Die Daten waren korrekt, nur die Anzeige
+nicht. Behoben.
 
 ## Aktualisieren
 
-Neue Version über die alte installieren. Der Datenordner bleibt erhalten,
-nötige Datenbank-Anpassungen laufen beim Start automatisch. Im Docker-Betrieb
-genügt `docker compose up -d --build`.
+Neue Version über die alte installieren, oder das Selbstupdate machen lassen.
+Der Datenordner bleibt erhalten, nötige Datenbank-Anpassungen laufen beim Start
+automatisch. Im Docker-Betrieb genügt `docker compose up -d --build`.
 
 ## Lizenz
 
