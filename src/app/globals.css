@@ -74,6 +74,53 @@ input, select, textarea {
   .label {
     @apply block text-sm font-medium text-muted mb-1;
   }
+  /*
+   * Ein Textlink, den man mit dem Finger trifft.
+   *
+   * Am Schreibtisch ist ein unterstrichenes Wort ein gutes Ziel — auf der
+   * Leiter, mit Handschuh, ist es ein Glücksspiel: Die üblichen 16 bis 24
+   * Pixel Zeilenhöhe liegen weit unter den 44, die Apple und Google als
+   * Mindestmaß nennen.
+   *
+   * Deshalb wächst die Trefferfläche nur dort, wo grob gezeigt wird. Die
+   * seitliche Erweiterung hebt sich per negativem Rand selbst auf, damit sich
+   * am Layout nichts verschiebt.
+   */
+  .link-action {
+    @apply inline-flex items-center gap-1 rounded-lg text-accent
+      underline underline-offset-2 transition-colors hover:text-amber-400;
+  }
+  @media (pointer: coarse) {
+    .link-action {
+      @apply min-h-11 px-2 -mx-2;
+    }
+    /*
+     * Aufklapp-Überschriften sind Schaltflächen, auch wenn sie wie Text
+     * aussehen. Am Finger gemessen waren sie 18 bis 24 Pixel hoch — zu wenig,
+     * um sie zuverlässig zu treffen. Nur die Mindesthöhe wird gesetzt, damit
+     * keine bestehende Anordnung umspringt.
+     */
+    details > summary {
+      min-height: 2.75rem;
+      display: flex;
+      align-items: center;
+    }
+    /*
+     * Jede Schaltfläche im Inhalt bekommt Fingermaß.
+     *
+     * Die kleinen Zweitaktionen („Von der Planung nehmen", „Nachweis löschen",
+     * Mengen-Schritte) waren 16 bis 24 Pixel hoch. Sie einzeln anzufassen wäre
+     * an zwei Dutzend Stellen nötig gewesen und beim nächsten neuen Knopf
+     * wieder vergessen — deshalb hier, an einer Stelle.
+     *
+     * Textlinks im Fließtext bleiben unberührt: `min-height` greift bei
+     * inline-Elementen nicht. Wo ein Link ein echtes Ziel sein muss, trägt er
+     * `.link-action`.
+     */
+    main button {
+      min-height: 2.75rem;
+    }
+  }
 }
 
 :focus-visible {

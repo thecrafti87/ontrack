@@ -322,7 +322,7 @@ export function DeleteMaintenanceRecordForm({ recordId }: { recordId: string }) 
       <button
         type="submit"
         disabled={pending}
-        className="text-xs text-muted hover:text-red-400 underline"
+        className="inline-flex min-h-11 items-center text-xs text-muted underline hover:text-red-400"
       >
         {pending ? "Wird gelöscht…" : "Nachweis löschen"}
       </button>

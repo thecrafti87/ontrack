@@ -92,7 +92,7 @@ export default async function EinstellungenPage() {
             href={`/d/${exampleInventoryNo}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent font-mono"
+            className="link-action font-mono"
           >
             /d/{exampleInventoryNo}
           </Link>

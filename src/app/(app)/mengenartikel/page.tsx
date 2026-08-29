@@ -49,7 +49,10 @@ export default async function MengenartikelPage() {
           <ul className="flex flex-col gap-1 text-sm">
             {nachschub.map((i) => (
               <li key={i.id}>
-                <Link href={`/mengenartikel/${i.id}`} className="hover:underline">
+                <Link
+                  href={`/mengenartikel/${i.id}`}
+                  className="flex min-h-11 items-center hover:underline"
+                >
                   {i.name} — {i.quantity} {i.unit}
                   {i.minQuantity != null && <span className="text-muted"> (Warnschwelle {i.minQuantity})</span>}
                 </Link>

@@ -65,7 +65,7 @@ export function TechDataCard({
             Keine Zusatzfelder für Kategorie {deviceCategory ?? "–"} konfiguriert.
           </p>
           {isAdmin && (
-            <Link href="/einstellungen/felder" className="text-sm text-accent self-start">
+            <Link href="/einstellungen/felder" className="link-action text-sm self-start">
               Zur Konfiguration
             </Link>
           )}

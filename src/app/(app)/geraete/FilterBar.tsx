@@ -104,7 +104,13 @@ export function FilterBar({
   const anzahl = activeFilters.length;
 
   return (
-    <div className="flex flex-col gap-3">
+    /*
+      Am Handy bleibt die Suche oben stehen. Die Geräteliste ist mehrere
+      tausend Pixel lang; wer nach dem Scrollen etwas anderes sucht, müsste
+      sonst erst wieder ganz nach oben. Der eigene Hintergrund verhindert,
+      dass durchscrollende Zeilen darunter durchscheinen.
+    */
+    <div className="sticky top-0 z-20 -mx-4 flex flex-col gap-3 bg-background px-4 py-2 md:static md:mx-0 md:px-0 md:py-0">
       <div className="flex gap-3">
         <input
           type="search"

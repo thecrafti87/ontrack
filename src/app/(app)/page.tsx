@@ -221,26 +221,45 @@ export default async function DashboardPage() {
           {recentLogs.length === 0 ? (
             <p className="text-sm text-muted">Noch keine Einträge.</p>
           ) : (
-            <ul className="flex flex-col gap-2 text-sm">
-              {recentLogs.map((log) => (
-                <li key={log.id} className="border-b border-line last:border-0 pb-2 last:pb-0">
-                  <span className="text-muted">{formatDateTime(log.createdAt)}</span> —{" "}
-                  {log.user?.name ?? "Unbekannt"}: {log.action}
-                  {log.device && (
-                    <>
-                      {" "}
-                      (
+            /*
+              Zwei Zeilen statt einer: Was passiert ist, steht oben; wer und
+              wann, darunter. Und wo ein Gerät beteiligt war, ist die ganze
+              Zeile der Weg dorthin — vorher war es ein 18 Pixel hoher Link
+              mitten im Satz, den man am Handy dreimal danebentippt.
+            */
+            <ul className="flex flex-col divide-y divide-line">
+              {recentLogs.map((log) => {
+                const inhalt = (
+                  <>
+                    <span className="text-sm">
+                      {log.action}
+                      {log.device && (
+                        <span className="text-accent"> · {log.device.name}</span>
+                      )}
+                    </span>
+                    <span className="text-xs text-muted">
+                      {formatDateTime(log.createdAt)} · {log.user?.name ?? "Unbekannt"}
+                    </span>
+                  </>
+                );
+
+                return (
+                  <li key={log.id}>
+                    {log.device ? (
                       <Link
                         href={`/geraete/${log.device.id}`}
-                        className="text-accent underline underline-offset-2"
+                        className="flex min-h-11 flex-col justify-center gap-0.5 py-2 hover:text-accent"
                       >
-                        {log.device.name}
+                        {inhalt}
                       </Link>
-                      )
-                    </>
-                  )}
-                </li>
-              ))}
+                    ) : (
+                      <div className="flex min-h-11 flex-col justify-center gap-0.5 py-2">
+                        {inhalt}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

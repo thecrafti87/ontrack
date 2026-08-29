@@ -46,6 +46,34 @@ const URGENCY_BADGE_CLASSES: Record<string, string> = {
   later: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
 };
 
+/**
+ * Eine Karte, die zugeklappt anfängt.
+ *
+ * Die Geräteseite war auf dem Handy fast 5000 Pixel lang — sechs Bildschirme.
+ * Wer nach einem Scan davorsteht, will Status, Standort und Defekte sehen,
+ * nicht Fotos und Historie durchscrollen. Zugeklappt heißt aber nicht
+ * versteckt: Die Kopfzeile sagt, was drin ist und wie viel.
+ */
+function Ausklappbar({
+  titel,
+  zusatz,
+  children,
+}: {
+  titel: string;
+  zusatz?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="card">
+      <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between gap-3 font-semibold">
+        <span>{titel}</span>
+        {zusatz && <span className="text-sm font-normal text-muted">{zusatz}</span>}
+      </summary>
+      <div className="mt-4 flex flex-col gap-4">{children}</div>
+    </details>
+  );
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -232,55 +260,6 @@ export default async function DeviceDetailPage({
         </div>
       )}
 
-      {/* Stammdaten */}
-      <div className="card">
-        <h2 className="font-semibold mb-3">Stammdaten</h2>
-        <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-          <div className="flex justify-between md:block">
-            <dt className="text-muted">Inventarnummer</dt>
-            <dd className="font-mono">{device.inventoryNo}</dd>
-          </div>
-          <div className="flex justify-between md:block">
-            <dt className="text-muted">Kategorie</dt>
-            <dd>{device.category ?? "–"}</dd>
-          </div>
-          <div className="flex justify-between md:block">
-            <dt className="text-muted">Seriennummer</dt>
-            <dd>{device.serialNo ?? "–"}</dd>
-          </div>
-          <div className="flex justify-between md:block">
-            <dt className="text-muted">Kaufdatum</dt>
-            <dd>{formatDate(device.purchaseDate)}</dd>
-          </div>
-          <div className="flex justify-between md:block">
-            <dt className="text-muted">Kaufpreis</dt>
-            <dd>{device.purchasePrice != null ? `${device.purchasePrice.toFixed(2)} €` : "–"}</dd>
-          </div>
-          <div className="flex justify-between md:block">
-            <dt className="text-muted">Lieferant</dt>
-            <dd>{device.supplier ?? "–"}</dd>
-          </div>
-          <div className="flex justify-between md:block">
-            <dt className="text-muted">Gewicht</dt>
-            <dd>{device.weightKg != null ? `${device.weightKg} kg` : "–"}</dd>
-          </div>
-          <div className="md:col-span-2">
-            <dt className="text-muted">Notizen</dt>
-            <dd className="whitespace-pre-wrap">{device.notes ?? "–"}</dd>
-          </div>
-        </dl>
-      </div>
-
-      {/* Technische Daten */}
-      <TechDataCard
-        deviceId={device.id}
-        deviceCategory={device.category}
-        editable={editable}
-        isAdmin={user.role === "ADMIN"}
-        displayGroups={displayGroups}
-        activeFields={activeFields}
-      />
-
       {/* Standort */}
       <div className="card flex flex-col gap-4">
         <h2 className="font-semibold">Standort</h2>
@@ -330,7 +309,7 @@ export default async function DeviceDetailPage({
                   href={`https://www.openstreetmap.org/?mlat=${device.lastLat}&mlon=${device.lastLng}#map=17/${device.lastLat}/${device.lastLng}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-accent"
+                  className="link-action"
                 >
                   auf Karte anzeigen
                 </a>
@@ -348,9 +327,60 @@ export default async function DeviceDetailPage({
         )}
       </div>
 
+      {/* Stammdaten */}
+      <div className="card">
+        <h2 className="font-semibold mb-3">Stammdaten</h2>
+        <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div className="flex justify-between md:block">
+            <dt className="text-muted">Inventarnummer</dt>
+            <dd className="font-mono">{device.inventoryNo}</dd>
+          </div>
+          <div className="flex justify-between md:block">
+            <dt className="text-muted">Kategorie</dt>
+            <dd>{device.category ?? "–"}</dd>
+          </div>
+          <div className="flex justify-between md:block">
+            <dt className="text-muted">Seriennummer</dt>
+            <dd>{device.serialNo ?? "–"}</dd>
+          </div>
+          <div className="flex justify-between md:block">
+            <dt className="text-muted">Kaufdatum</dt>
+            <dd>{formatDate(device.purchaseDate)}</dd>
+          </div>
+          <div className="flex justify-between md:block">
+            <dt className="text-muted">Kaufpreis</dt>
+            <dd>{device.purchasePrice != null ? `${device.purchasePrice.toFixed(2)} €` : "–"}</dd>
+          </div>
+          <div className="flex justify-between md:block">
+            <dt className="text-muted">Lieferant</dt>
+            <dd>{device.supplier ?? "–"}</dd>
+          </div>
+          <div className="flex justify-between md:block">
+            <dt className="text-muted">Gewicht</dt>
+            <dd>{device.weightKg != null ? `${device.weightKg} kg` : "–"}</dd>
+          </div>
+          <div className="md:col-span-2">
+            <dt className="text-muted">Notizen</dt>
+            <dd className="whitespace-pre-wrap">{device.notes ?? "–"}</dd>
+          </div>
+        </dl>
+      </div>
+
+      {/* Technische Daten */}
+      <TechDataCard
+        deviceId={device.id}
+        deviceCategory={device.category}
+        editable={editable}
+        isAdmin={user.role === "ADMIN"}
+        displayGroups={displayGroups}
+        activeFields={activeFields}
+      />
+
       {/* Fotos */}
-      <div className="card flex flex-col gap-4">
-        <h2 className="font-semibold">Fotos</h2>
+      <Ausklappbar
+        titel="Fotos"
+        zusatz={device.photos.length === 0 ? "keine" : `${device.photos.length}`}
+      >
 
         {device.photos.length === 0 ? (
           <p className="text-muted text-sm">Noch keine Fotos.</p>
@@ -374,7 +404,7 @@ export default async function DeviceDetailPage({
         )}
 
         {editable && <PhotoUploadForm deviceId={device.id} />}
-      </div>
+      </Ausklappbar>
 
       {/* Einsätze */}
       {relevantEventItems.length > 0 && (
@@ -387,7 +417,10 @@ export default async function DeviceDetailPage({
               return (
                 <li key={item.id} className="rounded-xl border border-line p-3 flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-3">
-                    <Link href={`/events/${item.event.id}`} className="font-medium hover:text-accent">
+                    <Link
+                      href={`/events/${item.event.id}`}
+                      className="-my-1 flex min-h-11 items-center py-1 font-medium hover:text-accent"
+                    >
                       {item.event.name}
                     </Link>
                     <span className={`badge shrink-0 ${st?.badge ?? ""}`}>{st?.label ?? item.status}</span>
@@ -479,7 +512,7 @@ export default async function DeviceDetailPage({
           {maintenancePlans.some((plan) => plan.records.length > 0) && (
             <a
               href={`/api/export/pruefnachweise?geraet=${device.id}`}
-              className="text-sm text-accent underline"
+              className="link-action text-sm"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -563,8 +596,14 @@ export default async function DeviceDetailPage({
       </div>
 
       {/* Historie */}
-      <div className="card">
-        <h2 className="font-semibold mb-3">Historie</h2>
+      <Ausklappbar
+        titel="Historie"
+        zusatz={
+          device.logs.length === 0
+            ? "keine Einträge"
+            : `${device.logs.length} ${device.logs.length === 1 ? "Eintrag" : "Einträge"}`
+        }
+      >
         {device.logs.length === 0 ? (
           <p className="text-muted text-sm">Noch keine Einträge.</p>
         ) : (
@@ -579,7 +618,7 @@ export default async function DeviceDetailPage({
             ))}
           </ul>
         )}
-      </div>
+      </Ausklappbar>
 
       <NfcWriteCard url={`${baseUrl}/d/${device.inventoryNo}`} />
     </div>

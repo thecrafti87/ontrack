@@ -70,8 +70,13 @@ function PlanGroupTable({ plans, editable }: { plans: PlanRow[]; editable: boole
       <div className="md:hidden flex flex-col gap-2">
         {plans.map((plan) => (
           <div key={plan.id} className="card flex flex-col gap-2">
-            <Link href={`/geraete/${plan.device.id}`} className="font-medium hover:text-accent">
-              {plan.device.name}{" "}
+            {/* Volle Breite als Trefferfläche: Auf dem Handy ist der Gerätename
+                der Einstieg, und ein 24 Pixel hoher Textlink ist keiner. */}
+            <Link
+              href={`/geraete/${plan.device.id}`}
+              className="-m-1 flex min-h-11 flex-col justify-center rounded-lg p-1 hover:bg-surface-2"
+            >
+              <span className="font-medium">{plan.device.name}</span>
               <span className="font-mono text-muted text-sm">{plan.device.inventoryNo}</span>
             </Link>
             <p className="text-sm text-muted">{plan.title}</p>
@@ -116,25 +121,23 @@ export default async function WartungPage() {
         <h1 className="text-2xl font-bold">Wartung</h1>
         {/* Für die Berufsgenossenschaft, die Versicherung oder eine Übergabe
             zählt nicht die Fälligkeitsliste, sondern der Nachweis. */}
-        <p className="text-sm text-muted">
-          Prüfnachweise:{" "}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <span className="text-muted">Prüfnachweise:</span>
           <a
             href="/api/export/pruefnachweise?format=pdf"
-            className="text-accent underline"
+            className="link-action"
             target="_blank"
             rel="noopener noreferrer"
           >
             PDF
-          </a>{" "}
-          ·{" "}
-          <a href="/api/export/pruefnachweise?format=csv" className="text-accent underline">
+          </a>
+          <a href="/api/export/pruefnachweise?format=csv" className="link-action">
             CSV
           </a>
-          {" · "}
-          <Link href="/wartung/plaketten" className="text-accent underline">
+          <Link href="/wartung/plaketten" className="link-action">
             Plaketten drucken
           </Link>
-        </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
