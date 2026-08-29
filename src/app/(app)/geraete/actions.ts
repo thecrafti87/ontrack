@@ -131,6 +131,9 @@ export async function createDeviceAction(
     // Die Seriennummer gehört zum einzelnen Gerät; bei einer Serie wäre sie
     // für alle dieselbe und damit falsch.
     serialNo: nummern.length === 1 ? fields.serialNo : null,
+    // Der Produktcode dagegen gehört zur Bauart und ist bei einer Serie für
+    // alle derselbe — genau das ist sein Zweck.
+    gtin: fields.gtin,
     purchaseDate: fields.purchaseDate,
     purchasePrice: fields.purchasePrice,
     supplier: fields.supplier,
@@ -203,6 +206,7 @@ export async function updateDeviceAction(
   if (existing.name !== fields.name) changedFields.push("Name");
   if ((existing.category ?? null) !== fields.category) changedFields.push("Kategorie");
   if ((existing.serialNo ?? null) !== fields.serialNo) changedFields.push("Seriennummer");
+  if ((existing.gtin ?? null) !== fields.gtin) changedFields.push("Produktcode");
   if ((existing.purchaseDate?.getTime() ?? null) !== (fields.purchaseDate?.getTime() ?? null))
     changedFields.push("Kaufdatum");
   if ((existing.purchasePrice ?? null) !== fields.purchasePrice) changedFields.push("Kaufpreis");
@@ -221,6 +225,7 @@ export async function updateDeviceAction(
       name: fields.name,
       category: fields.category,
       serialNo: fields.serialNo,
+      gtin: fields.gtin,
       purchaseDate: fields.purchaseDate,
       purchasePrice: fields.purchasePrice,
       supplier: fields.supplier,
