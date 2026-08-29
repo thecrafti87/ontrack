@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, canEdit } from "@/lib/auth";
+import { DEVICE_STATUS, type DeviceStatus } from "@/lib/constants";
+import { codeErklaerung, leseBarcode } from "@/lib/barcode";
 import { StoerungMelden } from "./StoerungMelden";
 
 const FALLBACK_OWNER = "OnTrack Veranstaltungstechnik";
@@ -31,27 +33,100 @@ export default async function FoundDevicePage({
       redirect(`/cases/${caseRecord.id}`);
     }
 
-    // Barcode-Fallback: gescannte Hersteller-Seriennummer (nicht unique → erster Treffer)
-    const bySerial = await prisma.device.findFirst({ where: { serialNo: inventoryNo } });
+    // Ab hier ist es kein eigenes Etikett mehr, sondern ein fremder Code.
+    // Was er bedeutet, entscheidet, was sinnvoll passieren kann.
+    const gelesen = leseBarcode(inventoryNo);
 
-    if (bySerial) {
-      redirect(`/geraete/${bySerial.id}?scan=1`);
+    // Seriennummer: meint genau ein Gerät.
+    if (gelesen.seriennummer) {
+      const bySerial = await prisma.device.findFirst({
+        where: { serialNo: gelesen.seriennummer },
+      });
+      if (bySerial) redirect(`/geraete/${bySerial.id}?scan=1`);
     }
 
+    // Produktcode: meint eine Bauart. Es kann also mehrere Treffer geben —
+    // und dann ist die Frage nicht „welches Gerät ist das", sondern „welches
+    // von diesen".
+    const baugleiche = gelesen.produktcode
+      ? await prisma.device.findMany({
+          where: { gtin: gelesen.produktcode },
+          select: { id: true, inventoryNo: true, name: true, status: true, category: true },
+          orderBy: { inventoryNo: "asc" },
+        })
+      : [];
+
+    if (baugleiche.length === 1) {
+      redirect(`/geraete/${baugleiche[0]!.id}?scan=1`);
+    }
+
+    const anlegenHref = `/geraete/neu?code=${encodeURIComponent(inventoryNo)}`;
+    const editable = canEdit(user);
+
     return (
-      <div className="flex flex-1 flex-col items-center justify-center min-h-full px-4 py-12">
-        <div className="w-full max-w-sm card flex flex-col items-center gap-4 text-center">
-          <h1 className="text-xl font-bold">Unbekannter Code</h1>
-          <p className="text-muted text-sm">
-            Zum Code <span className="font-mono">{inventoryNo}</span> wurde kein Gerät gefunden
-            (weder als Inventar- noch als Seriennummer).
-          </p>
-          <div className="flex flex-col gap-3 w-full">
-            <Link href="/scan" className="btn-primary w-full">
+      <div className="p-4 md:p-8 max-w-lg mx-auto flex flex-col gap-4">
+        <div className="card flex flex-col gap-3">
+          <h1 className="text-xl font-bold">
+            {baugleiche.length > 1 ? "Mehrere Geräte dieser Bauart" : "Noch kein Gerät zu diesem Code"}
+          </h1>
+          <p className="font-mono text-accent break-all">{inventoryNo}</p>
+          <p className="text-sm text-muted">{codeErklaerung(gelesen)}</p>
+        </div>
+
+        {baugleiche.length > 1 && (
+          <div className="card flex flex-col gap-2">
+            <p className="label">{baugleiche.length} Geräte im Bestand</p>
+            <p className="text-sm text-muted">
+              Der Code steht auf jedem davon. Welches hast du in der Hand?
+            </p>
+            <ul className="flex flex-col gap-1">
+              {baugleiche.map((d) => (
+                <li key={d.id}>
+                  <Link
+                    href={`/geraete/${d.id}?scan=1`}
+                    className="flex items-baseline justify-between gap-3 rounded-lg px-3 py-2.5 min-h-11 hover:bg-surface-2"
+                  >
+                    <span>
+                      <span className="font-mono">{d.inventoryNo}</span>
+                      <span className="text-muted"> · {d.name}</span>
+                    </span>
+                    <span className="text-sm text-muted shrink-0">
+                      {DEVICE_STATUS[d.status as DeviceStatus]?.label ?? d.status}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm text-muted border-t border-line pt-2">
+              Damit sich die Geräte künftig am Scan unterscheiden lassen, hilft nur ein eigenes
+              Etikett je Gerät — der Produktcode kann das nicht leisten.
+            </p>
+          </div>
+        )}
+
+        <div className="card flex flex-col gap-3">
+          {editable ? (
+            <>
+              <Link href={anlegenHref} className="btn-primary w-full text-center">
+                {baugleiche.length > 1 ? "Weiteres Gerät dieser Bauart anlegen" : "Gerät anlegen"}
+              </Link>
+              {baugleiche.length > 0 && (
+                <p className="text-sm text-muted">
+                  Name, Kategorie und Gewicht werden von {baugleiche[0]!.inventoryNo} übernommen.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted">
+              Zum Anlegen fehlt dir die Berechtigung — melde den Code jemandem mit Schreibrecht.
+            </p>
+          )}
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/scan" className="btn-secondary flex-1 text-center">
               Erneut scannen
             </Link>
-            <Link href="/geraete" className="btn-secondary w-full">
-              Zur Geräteliste
+            <Link href="/geraete" className="btn-secondary flex-1 text-center">
+              Geräteliste
             </Link>
           </div>
         </div>

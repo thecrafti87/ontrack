@@ -42,6 +42,7 @@ export default async function EditDevicePage({ params }: { params: Promise<{ id:
             name: device.name,
             category: device.category,
             serialNo: device.serialNo,
+            gtin: device.gtin,
             purchaseDate: device.purchaseDate ? device.purchaseDate.toISOString().slice(0, 10) : null,
             purchasePrice: device.purchasePrice,
             supplier: device.supplier,

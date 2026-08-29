@@ -61,6 +61,14 @@ model Device {
   name          String
   category      String?
   serialNo      String?
+  /// Produktcode vom Hersteller-Etikett (EAN/UPC/GTIN).
+  ///
+  /// Bewusst getrennt von der Seriennummer, weil er etwas anderes bezeichnet:
+  /// Die Seriennummer meint dieses eine Gerät, der Produktcode den Typ. Acht
+  /// baugleiche Scheinwerfer tragen denselben Produktcode und acht
+  /// verschiedene Seriennummern. Wer beides in ein Feld wirft, kann nach dem
+  /// Scan nicht mehr sagen, ob er ein Gerät gefunden hat oder eine Bauart.
+  gtin          String?
   purchaseDate  DateTime?
   purchasePrice Float?
   supplier      String?
@@ -93,6 +101,8 @@ model Device {
   rigFixtures  RigFixture[]
   loanItems    LoanItem[]
   externalReports ExternalReport[]
+
+  @@index([gtin])
 }
 
 model Case {

@@ -18,6 +18,7 @@ type DeviceFormProps = {
     name: string;
     category: string | null;
     serialNo: string | null;
+    gtin: string | null;
     purchaseDate: string | null; // yyyy-mm-dd
     purchasePrice: number | null;
     supplier: string | null;
@@ -28,6 +29,19 @@ type DeviceFormProps = {
     status: DeviceStatus;
   };
   nextInventoryNo?: string;
+  /**
+   * Vorbelegung aus einem Scan. Getrennt von `initial`, weil hier kein Gerät
+   * bearbeitet wird — es wird eins angelegt, und zwar mit dem, was der Scanner
+   * hergegeben hat.
+   */
+  vorbelegung?: {
+    serialNo?: string | null;
+    gtin?: string | null;
+    name?: string | null;
+    category?: string | null;
+    supplier?: string | null;
+    weightKg?: number | null;
+  };
   /** Nur im Bearbeiten-Modus: aktueller Override-Zustand für "Angezeigte Zusatzfelder". */
   fieldsConfig?: {
     hasOverride: boolean;
@@ -127,6 +141,7 @@ export default function DeviceForm({
   cases,
   initial,
   nextInventoryNo,
+  vorbelegung,
   fieldsConfig,
 }: DeviceFormProps) {
   const action = mode === "create" ? createDeviceAction : updateDeviceAction;
@@ -193,7 +208,13 @@ export default function DeviceForm({
           <label className="label" htmlFor="name">
             Name
           </label>
-          <input id="name" name="name" className="input" required defaultValue={initial?.name ?? ""} />
+          <input
+            id="name"
+            name="name"
+            className="input"
+            required
+            defaultValue={initial?.name ?? vorbelegung?.name ?? ""}
+          />
         </div>
 
         <div>
@@ -205,7 +226,7 @@ export default function DeviceForm({
             name="category"
             className="input"
             list="category-list"
-            defaultValue={initial?.category ?? ""}
+            defaultValue={initial?.category ?? vorbelegung?.category ?? ""}
           />
           <datalist id="category-list">
             {categories.map((c) => (
@@ -218,7 +239,29 @@ export default function DeviceForm({
           <label className="label" htmlFor="serialNo">
             Seriennummer
           </label>
-          <input id="serialNo" name="serialNo" className="input" defaultValue={initial?.serialNo ?? ""} />
+          <input
+            id="serialNo"
+            name="serialNo"
+            className="input"
+            defaultValue={initial?.serialNo ?? vorbelegung?.serialNo ?? ""}
+          />
+        </div>
+
+        <div>
+          <label className="label" htmlFor="gtin">
+            Produktcode (EAN/GTIN)
+          </label>
+          <input
+            id="gtin"
+            name="gtin"
+            className="input font-mono"
+            inputMode="numeric"
+            defaultValue={initial?.gtin ?? vorbelegung?.gtin ?? ""}
+          />
+          <p className="text-xs text-muted mt-1">
+            Der Code vom Hersteller-Etikett. Er bezeichnet die Bauart, nicht dieses Gerät —
+            baugleiche tragen denselben. Beim Scan wird damit die Bauart erkannt.
+          </p>
         </div>
 
         <div>
@@ -252,7 +295,12 @@ export default function DeviceForm({
           <label className="label" htmlFor="supplier">
             Lieferant
           </label>
-          <input id="supplier" name="supplier" className="input" defaultValue={initial?.supplier ?? ""} />
+          <input
+            id="supplier"
+            name="supplier"
+            className="input"
+            defaultValue={initial?.supplier ?? vorbelegung?.supplier ?? ""}
+          />
         </div>
 
         <div>
@@ -265,7 +313,7 @@ export default function DeviceForm({
             type="number"
             step="0.01"
             className="input"
-            defaultValue={initial?.weightKg ?? ""}
+            defaultValue={initial?.weightKg ?? vorbelegung?.weightKg ?? ""}
           />
         </div>
 

@@ -64,6 +64,7 @@ function readDeviceFields(formData: FormData) {
     name: String(formData.get("name") ?? "").trim(),
     category: String(formData.get("category") ?? "").trim() || null,
     serialNo: String(formData.get("serialNo") ?? "").trim() || null,
+    gtin: String(formData.get("gtin") ?? "").trim() || null,
     purchaseDate: parseOptionalDate(formData.get("purchaseDate")),
     purchasePrice: parseOptionalFloat(formData.get("purchasePrice")),
     supplier: String(formData.get("supplier") ?? "").trim() || null,
